@@ -1,10 +1,12 @@
+.claude
+
 # Environment configuration (contains sensitive data)
 .env
 .env.local
 .env.*.local
 
 # Build artifacts
-/src/codecommit-mirror
+/build/
 /src/*.exe
 
 # IDE and editor files

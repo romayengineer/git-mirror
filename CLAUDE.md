@@ -44,68 +44,84 @@ The codebase is structured around these concerns:
 
 ```
 codecommit-mirror/
-├── src/                                     # All Go code lives here
-│   ├── cmd/
-│   │   └── main/
-│   │       └── main.go                      # Entry point (.env loading & orchestration)
-│   ├── internal/
-│   │   ├── aws/
-│   │   │   ├── client.go                    # AWS SDK wrapper/initialization
-│   │   │   ├── discoverer.go                # List repos across regions
-│   │   │   └── discoverer_test.go
-│   │   ├── git/
-│   │   │   ├── cloner.go                    # SSH-based clone logic
-│   │   │   ├── syncer.go                    # Pull/update logic
-│   │   │   └── cloner_test.go
-│   │   └── mirror/
-│   │       ├── orchestrator.go              # Workflow coordination
-│   │       └── orchestrator_test.go
-│   ├── pkg/
-│   │   ├── config/
-│   │   │   └── config.go                    # .env parsing & validation
-│   │   └── types/
-│   │       └── types.go                     # Repository, Region types
-│   ├── go.mod
-│   ├── go.sum
-│   └── Makefile                             # Optional: build automation
-├── .env.example                             # Example .env template
-├── .env                                     # Configuration (git ignored)
+├── Makefile                                 # Build automation (run from root)
 ├── README.md
 ├── CLAUDE.md
-└── .gitignore
+├── .env.example                             # Example .env template
+├── .env                                     # Configuration (git ignored)
+├── .gitignore
+├── src/                                     # All Go code
+│   ├── go.mod
+│   ├── go.sum
+│   ├── cmd/
+│   │   └── main/
+│   │       └── main.go                      # Entry point
+│   ├── internal/
+│   │   ├── aws/
+│   │   │   ├── client.go                    # AWS SDK wrapper
+│   │   │   ├── discoverer.go                # Repository discovery
+│   │   │   └── discoverer_test.go
+│   │   ├── git/
+│   │   │   ├── executor.go                  # Git CLI wrapper
+│   │   │   ├── cloner.go                    # Clone logic with URL verification
+│   │   │   └── cloner_test.go
+│   │   └── mirror/
+│   │       └── orchestrator.go              # Workflow orchestration
+│   └── pkg/
+│       ├── config/
+│       │   ├── config.go                    # .env parsing & validation
+│       │   └── config_test.go
+│       └── types/
+│           └── types.go                     # Shared data types
+└── build/                                   # Build output (git ignored)
+    └── codecommit-mirror                    # Compiled binary
 ```
 
 ## Development Commands
 
-All commands are run from the `src/` directory.
+All commands are run from the **project root directory** using the Makefile.
 
 ### Building
 ```bash
-cd src/
-go build -o codecommit-mirror ./cmd/main
+make build
+# Output: ./build/codecommit-mirror
 ```
 
 ### Testing
 ```bash
+make test              # Run all tests
+make test-verbose      # Run with verbose output
+make test-cover        # Show coverage report
+```
+
+To run a specific test:
+```bash
 cd src/
-go test ./...                  # Run all tests
-go test -v ./...               # Run with verbose output
-go test ./... -run TestName    # Run specific test
-go test -cover ./...           # Show coverage
+go test ./... -run TestName
 ```
 
 ### Linting & Code Quality
 ```bash
-cd src/
-go fmt ./...                   # Format code
-go vet ./...                   # Vet for common errors
-golangci-lint run              # Full linting (if installed)
+make fmt               # Format code
+make vet               # Check for common errors
+make lint              # Full linting (requires golangci-lint)
 ```
 
 ### Running
 ```bash
-cd src/
-./codecommit-mirror
+make run               # Build and run the tool
+# Or run the binary directly:
+./build/codecommit-mirror
+```
+
+### Cleanup
+```bash
+make clean             # Remove build artifacts
+```
+
+### Show Available Commands
+```bash
+make help
 ```
 
 Configuration is loaded from a `.env` file in the repository root.

@@ -1,0 +1,59 @@
+package types
+
+type Repository struct {
+	Name             string
+	RepositoryURL    string
+	HTTPCloneURL     string
+	SSHCloneURL      string
+	ARN              string
+	AccountID        string
+	AccountAlias     string
+	Region           string
+	LocalPath        string
+	SSHKeyPath       string
+	RepositoryStatus string
+}
+
+type CloneResult struct {
+	Repository *Repository
+	Success    bool
+	Error      error
+	Message    string
+}
+
+type DiscoveryResult struct {
+	AccountID      string
+	AccountAlias   string
+	Region         string
+	Repositories   []*Repository
+	Error          error
+	TotalCount     int
+}
+
+type MirrorStats struct {
+	TotalRepositories int
+	SuccessfulClones  int
+	FailedClones      int
+	UpdatedRepositories int
+	Duration          string
+	Errors            []string
+}
+
+type Config struct {
+	AccountIDs           []string
+	AWSRegions           []string
+	SSHKeyPath           string
+	MirrorOutputDir      string
+	AWSCredentialsProfile string
+	ConcurrentClones     int
+	LogLevel             string
+}
+
+type AccountInfo struct {
+	ID    string
+	Alias string
+}
+
+type RegionInfo struct {
+	Name string
+}

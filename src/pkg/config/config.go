@@ -1,0 +1,99 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"github.com/maximiliano-romay-figueroa/codecommit-mirror/pkg/types"
+)
+
+type Loader interface {
+	Load() (*types.Config, error)
+}
+
+type envLoader struct {
+	envFilePath string
+}
+
+func NewEnvLoader(envFilePath string) Loader {
+	return &envLoader{envFilePath: envFilePath}
+}
+
+func (l *envLoader) Load() (*types.Config, error) {
+	if err := godotenv.Load(l.envFilePath); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to load .env file: %w", err)
+	}
+
+	cfg := &types.Config{}
+
+	accountIDs := os.Getenv("AWS_ACCOUNT_IDS")
+	if accountIDs == "" {
+		return nil, fmt.Errorf("AWS_ACCOUNT_IDS is required")
+	}
+	cfg.AccountIDs = strings.Split(accountIDs, ",")
+	for i, id := range cfg.AccountIDs {
+		cfg.AccountIDs[i] = strings.TrimSpace(id)
+	}
+
+	sshKeyPath := os.Getenv("SSH_KEY_PATH")
+	if sshKeyPath == "" {
+		return nil, fmt.Errorf("SSH_KEY_PATH is required")
+	}
+	expandedPath, err := expandPath(sshKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand SSH_KEY_PATH: %w", err)
+	}
+	if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("SSH key file does not exist: %s", expandedPath)
+	}
+	cfg.SSHKeyPath = expandedPath
+
+	mirrorDir := os.Getenv("MIRROR_OUTPUT_DIR")
+	if mirrorDir == "" {
+		return nil, fmt.Errorf("MIRROR_OUTPUT_DIR is required")
+	}
+	cfg.MirrorOutputDir = mirrorDir
+
+	awsRegions := os.Getenv("AWS_REGIONS")
+	if awsRegions != "" {
+		cfg.AWSRegions = strings.Split(awsRegions, ",")
+		for i, region := range cfg.AWSRegions {
+			cfg.AWSRegions[i] = strings.TrimSpace(region)
+		}
+	}
+
+	cfg.AWSCredentialsProfile = os.Getenv("AWS_CREDENTIALS_PROFILE")
+	if cfg.AWSCredentialsProfile == "" {
+		cfg.AWSCredentialsProfile = "default"
+	}
+
+	concurrentClonesStr := os.Getenv("CONCURRENT_CLONES")
+	cfg.ConcurrentClones = 5
+	if concurrentClonesStr != "" {
+		if clones, err := strconv.Atoi(concurrentClonesStr); err == nil && clones > 0 {
+			cfg.ConcurrentClones = clones
+		}
+	}
+
+	cfg.LogLevel = os.Getenv("LOG_LEVEL")
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
+	}
+
+	return cfg, nil
+}
+
+func expandPath(path string) (string, error) {
+	if strings.HasPrefix(path, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(homeDir, path[2:]), nil
+	}
+	return path, nil
+}
