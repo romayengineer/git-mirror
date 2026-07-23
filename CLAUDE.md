@@ -21,6 +21,7 @@ This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a
 - **AWS Credential Chain Support**: Uses `~/.aws/credentials` profiles with optional STS AssumeRole for cross-account access
 - **Flexible Concurrency**: Configurable number of concurrent clone operations
 - **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no external git library dependencies)
+- **Dependency Injection**: Uses dependency injection for AWS clients and git operations (enables easy testing and mocking)
 
 ## High-Level Architecture
 
@@ -165,6 +166,51 @@ The tool uses **git CLI commands directly** via Go's `os/exec` package rather th
 - Git must be installed and available in `$PATH`
 - SSH must be configured for CodeCommit access
 
+## Dependency Injection Architecture
+
+The codebase uses **interface-based dependency injection throughout** to maximize testability and flexibility:
+
+**Core Principles:**
+- Define interfaces for ALL external dependencies (AWS, git, file I/O, etc.)
+- Accept interfaces in constructors and function parameters
+- Keep interfaces small and focused (single responsibility)
+- Implement interfaces in separate implementation packages when needed
+
+**Key Interfaces (Examples):**
+- `aws.AccountClient` — Interface for AWS account-level operations (list regions, get account alias)
+- `aws.RepositoryDiscoverer` — Interface for discovering repositories
+- `git.Executor` — Interface for git CLI operations (clone, pull, verify origin)
+- `config.Loader` — Interface for loading configuration
+- `log.Logger` — Interface for logging (if needed)
+
+**Implementation Pattern:**
+```go
+// Define interface in the package
+type AccountClient interface {
+  GetAccountAlias(ctx context.Context, accountID string) (string, error)
+  ListRegions(ctx context.Context) ([]string, error)
+}
+
+// Accept interface in constructor
+type Discoverer struct {
+  client AccountClient
+}
+
+func NewDiscoverer(client AccountClient) *Discoverer {
+  return &Discoverer{client: client}
+}
+
+// In tests, pass mock
+type mockAccountClient struct{}
+func (m *mockAccountClient) GetAccountAlias(...) (string, error) { return "test-account", nil }
+```
+
+**Benefits:**
+- 100% unit test coverage possible without AWS/git infrastructure
+- Easy to test error cases, edge cases, and timeouts
+- Tests run fast (no real API calls)
+- Easy to add new implementations (e.g., future git library changes)
+
 ## Important Considerations
 
 ### SSH Key Handling
@@ -220,7 +266,10 @@ When a repository already exists locally:
 
 ## Testing Strategy
 
-- Unit tests for AWS discovery logic (mock AWS SDK responses)
-- Unit tests for git operations (mock git commands or use temp directories)
-- Integration tests should use a test AWS account/credentials (if available)
-- CLI flag parsing should be tested independently
+- **Unit Tests**: Mock all external dependencies (AWS, git) using interfaces
+- **AWS Discovery Tests**: Mock `AccountClient` and `RepositoryDiscoverer` interfaces
+- **Git Operation Tests**: Mock `git.Executor` interface for clone/pull/verify operations
+- **Configuration Tests**: Unit test .env parsing and validation
+- **Error Scenario Tests**: Use mocks to simulate AWS/git failures, timeouts, etc.
+- **Integration Tests** (optional): Use a test AWS account if available for end-to-end testing
+- **Test Coverage Goal**: Aim for high coverage through interface mocking (no external dependencies needed for unit tests)
