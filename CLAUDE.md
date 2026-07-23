@@ -4,16 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and an AWS account ID, it discovers and clones all CodeCommit repositories across all AWS regions, maintaining a local mirror of the entire account's repositories.
+This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a list of AWS account IDs, it discovers and clones all CodeCommit repositories across all AWS regions for each account, maintaining a local mirror of all repositories organized by account and region.
 
 ## High-Level Architecture
 
-The tool follows a simple pipeline:
+The tool follows a pipeline for each configured account:
 
-1. **Discovery Phase**: Uses AWS SDK to list CodeCommit repositories in each region
-2. **Authentication**: Uses provided SSH credentials to clone repositories
-3. **Clone Phase**: Clones each discovered repository to the local filesystem
-4. **Mirror Sync**: Pulls latest changes from all repositories (for updates)
+1. **Account Setup**: Assume IAM role or use credentials for each account ID
+2. **Discovery Phase**: Uses AWS SDK to list CodeCommit repositories in each region
+3. **Authentication**: Uses provided SSH credentials to clone repositories
+4. **Clone Phase**: Clones each discovered repository to the local filesystem
+5. **Mirror Sync**: Pulls latest changes from all repositories (for updates)
 
 The codebase is structured around these concerns:
 - AWS API interaction (account alias lookup, region enumeration, repository listing)
@@ -97,9 +98,9 @@ Configuration is loaded from a `.env` file in the repository root.
 All configuration is loaded from a `.env` file in the repository root. Required variables:
 
 ```env
-AWS_ACCOUNT_ID=123456789012         # AWS account ID to mirror
-SSH_KEY_PATH=/path/to/ssh/key       # Path to SSH private key for CodeCommit
-MIRROR_OUTPUT_DIR=./mirror          # Local directory for cloned repositories
+AWS_ACCOUNT_IDS=123456789012,210987654321    # Comma-separated list of AWS account IDs
+SSH_KEY_PATH=/path/to/ssh/key                # Path to SSH private key for CodeCommit
+MIRROR_OUTPUT_DIR=./mirror                   # Local directory for cloned repositories
 ```
 
 Optional variables:
@@ -138,32 +139,41 @@ The tool reads the `.env` file on startup and validates that all required variab
 - SSH key errors should fail fast with clear messaging
 
 ### Concurrency
-- Repository cloning should happen in parallel across regions to improve performance
-- Use goroutine pools or semaphores to avoid overwhelming the system or AWS API limits
+- Process multiple accounts in parallel (each account gets its own credential context)
+- Clone repositories in parallel across regions within each account
+- Use goroutine pools or semaphores to avoid overwhelming the system or AWS API rate limits
 - Handle context cancellation gracefully (e.g., Ctrl+C during mirror operations)
+- Ensure account-level operations (like STS AssumeRole) are thread-safe
 
 ### AWS API Interactions
 - Always paginate through ListRepositories results (repositories > 25 per region)
 - Handle region errors gracefully; a failed region shouldn't stop other regions
+- For multiple accounts: Use STS AssumeRole to switch between accounts, or manage credentials via AWS credential files
 - Use proper AWS credential chain (env vars, ~/.aws/credentials, IAM role, etc.)
+- Each account should have a separate AWS API session with appropriate credentials
 
 ### Output Structure
 Cloned repositories follow this directory structure:
 ```
 mirror_output/
-├── account_alias/
+├── account-alias-1/
 │   ├── us-east-1/
 │   │   ├── repo-name-1/
 │   │   └── repo-name-2/
 │   ├── eu-west-1/
 │   │   └── repo-name-3/
+├── account-alias-2/
+│   ├── us-east-1/
+│   │   └── repo-name-4/
+│   └── ap-southeast-1/
+│       └── repo-name-5/
 ```
 
-- Use the AWS account alias for the top-level directory
-- Organize by region underneath
-- Repository names at the leaf level
+- Top level: Account alias (for each account in `AWS_ACCOUNT_IDS`)
+- Second level: AWS region
+- Leaf level: Repository names
 - Create directories if they don't exist
-- Handle duplicate repository names across regions (same name, different regions)
+- Handle duplicate repository names across regions or accounts (same name, different regions/accounts)
 - Skip cloning if a repository already exists locally (add an update flag to re-sync)
 
 ## Testing Strategy
