@@ -1,0 +1,28 @@
+# Environment configuration (contains sensitive data)
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+/src/codecommit-mirror
+/src/*.exe
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go build and test artifacts
+/src/dist/
+/src/bin/
+*.test
+*.out
+
+# Mirror output directory
+/mirror/
+
+# Dependency management
+/src/vendor/
