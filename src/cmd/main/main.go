@@ -10,6 +10,8 @@ import (
 	"github.com/romayengineer/codecommit-mirror/internal/aws"
 	"github.com/romayengineer/codecommit-mirror/internal/git"
 	"github.com/romayengineer/codecommit-mirror/internal/mirror"
+	"github.com/romayengineer/codecommit-mirror/internal/providers"
+	codecommitprovider "github.com/romayengineer/codecommit-mirror/internal/providers/codecommit"
 	"github.com/romayengineer/codecommit-mirror/pkg/config"
 )
 
@@ -45,12 +47,22 @@ func run() error {
 	executor := git.NewExecutor()
 	cloner := git.NewCloner(executor)
 
-	orchestrator := mirror.NewOrchestrator(cloner, cfg.SSHKeyPath, cfg.AccountProfiles, cfg.AWSDefaultRegion)
+	codecommitProvider := codecommitprovider.NewCodeCommitProvider(
+		cfg.AccountIDs,
+		cfg.AWSRegions,
+		cfg.AWSCredentialsProfile,
+		cfg.AccountProfiles,
+		cfg.AWSDefaultRegion,
+	)
+
+	providersSlice := []providers.Provider{codecommitProvider}
+
+	orchestrator := mirror.NewOrchestrator(cloner, cfg.SSHKeyPath, providersSlice)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	fmt.Println("Starting CodeCommit mirror process...")
+	fmt.Println("Starting repository mirror process...")
 	fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
 	fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
 	if len(cfg.AWSRegions) > 0 {

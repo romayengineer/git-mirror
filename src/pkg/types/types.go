@@ -12,6 +12,7 @@ type Repository struct {
 	LocalPath        string
 	SSHKeyPath       string
 	RepositoryStatus string
+	Provider         string // Name of the provider (e.g., "codecommit", "github", "gitlab")
 }
 
 type CloneResult struct {

@@ -4,49 +4,54 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a list of AWS account IDs, it discovers and clones all CodeCommit repositories across all AWS regions for each account, maintaining a local mirror of all repositories organized by account and region.
+**git-mirror** is a multi-provider Git repository mirror tool written in Go. It discovers and clones repositories from multiple Git providers (currently AWS CodeCommit, with GitHub and GitLab support planned) to a local filesystem, maintaining organized mirrors by provider, account/organization, and region.
+
+The tool uses a plugin-style provider architecture with an interface-based design that makes adding new providers straightforward without modifying core orchestration logic.
 
 ## Features
 
-- **Multi-Account Support**: Mirror repositories from multiple AWS accounts in a single run
-- **Multi-Region Support**: Automatically discover and clone from all AWS regions or specify a subset
-- **SSH Authentication**: Uses SSH keys for secure CodeCommit access
-- **Parallel Cloning**: Concurrent clone operations to improve performance across regions and accounts
-- **Smart Directory Organization**: Organizes cloned repositories as `account_alias/region/repository_name`
+- **Multi-Provider Support**: Mirror from AWS CodeCommit, GitHub, GitLab, and other Git providers
+- **Multi-Account/Organization Support**: Mirror from multiple AWS accounts or GitHub orgs in a single run
+- **Multi-Region Support** (CodeCommit): Auto-discover all AWS regions or specify a subset
+- **Parallel Cloning**: Concurrent clone operations for performance
+- **Smart Directory Organization**: Organizes clones as `provider/account-or-org/region/repository_name`
 - **.env Configuration**: Simple environment variable configuration without CLI flags
-- **Regional Discovery**: Auto-discover available regions or manually specify which regions to clone from
-- **Error Resilience**: Continue cloning even if individual regions or repositories fail
-- **Update/Sync Support**: Re-clone existing repositories to pull latest changes
-- **Account Alias Resolution**: Uses AWS account aliases for more readable directory structures
-- **AWS Credential Chain Support**: Uses `~/.aws/credentials` profiles with optional STS AssumeRole for cross-account access
-- **Flexible Concurrency**: Configurable number of concurrent clone operations
-- **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no external git library dependencies)
-- **Dependency Injection**: Uses dependency injection for AWS clients and git operations (enables easy testing and mocking)
+- **Error Resilience**: Gracefully handle failures - continue cloning if regions or repositories fail
+- **Automatic Updates**: Detect existing repositories and pull latest changes
+- **Provider-Specific Features**: Each provider implementation handles its own authentication and API patterns
+- **Account/Org Aliases**: Uses readable aliases instead of just IDs (AWS account names, GitHub org names, etc.)
+- **Flexible Authentication**: Support for SSH keys, tokens, and other auth methods per provider
+- **Flexible Concurrency**: Configurable concurrent clone operations with per-provider rate limits
+- **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no git library dependencies)
+- **Dependency Injection**: Interface-based design for easy testing, mocking, and extension
 
 ## High-Level Architecture
 
-The tool follows a pipeline for each configured account:
+The tool follows a plugin-style provider pattern:
 
-1. **Account Setup**: Assume IAM role or use credentials for each account ID
-2. **Discovery Phase**: Uses AWS SDK to list CodeCommit repositories in each region
-3. **Authentication**: Uses provided SSH credentials to clone repositories
-4. **Clone Phase**: Clones each discovered repository to the local filesystem
-5. **Mirror Sync**: Pulls latest changes from all repositories (for updates)
+1. **Configuration Loading**: Parse `.env` file and load provider configs
+2. **Provider Initialization**: Create provider instances (CodeCommit, GitHub, GitLab, etc.)
+3. **Repository Discovery**: Each provider discovers its repositories in parallel
+4. **Aggregation**: Merge results from all providers
+5. **Clone Phase**: Parallel clone/update of all discovered repositories
+6. **Mirror Sync**: Pull latest changes from cloned repositories
 
 The codebase is structured around these concerns:
-- AWS API interaction (account alias lookup, region enumeration, repository listing)
-- SSH/Git operations (cloning, pulling)
-- Concurrency and error handling (parallel cloning across regions and repositories)
-- Path management (building consistent `account_alias/region/repository_name` structure)
-- Configuration management (SSH keys, AWS credentials, output directory)
+- **Provider Interface** (`src/internal/providers/provider.go`): Defines contract for all providers
+- **Provider Implementations** (`src/internal/providers/*/`): Provider-specific logic (CodeCommit, GitHub, etc.)
+- **Git Operations** (`src/internal/git/`): Unified clone/pull logic used by all providers
+- **Orchestration** (`src/internal/mirror/`): Coordinates providers and cloning
+- **Configuration** (`src/pkg/config/`): Environment-based configuration
+- **Type Definitions** (`src/pkg/types/`): Shared data structures
 
 ## Repository Structure
 
 ```
-codecommit-mirror/
+git-mirror/
 ├── Makefile                                 # Build automation (run from root)
 ├── README.md
 ├── CLAUDE.md
+├── KNOWN_ISSUES.md
 ├── .env.example                             # Example .env template
 ├── .env                                     # Configuration (git ignored)
 ├── .gitignore
@@ -55,24 +60,29 @@ codecommit-mirror/
 │   ├── go.sum
 │   ├── cmd/
 │   │   └── main/
-│   │       └── main.go                      # Entry point
+│   │       └── main.go                      # Entry point - initializes providers and orchestrator
 │   ├── internal/
+│   │   ├── providers/                       # Git provider implementations
+│   │   │   ├── provider.go                  # Provider interface
+│   │   │   └── codecommit/
+│   │   │       └── provider.go              # CodeCommit provider
 │   │   ├── aws/
 │   │   │   ├── client.go                    # AWS SDK wrapper
-│   │   │   ├── discoverer.go                # Repository discovery
+│   │   │   ├── cli_executor.go              # AWS CLI wrapper
+│   │   │   ├── discoverer.go                # CodeCommit repository discovery
 │   │   │   └── discoverer_test.go
 │   │   ├── git/
 │   │   │   ├── executor.go                  # Git CLI wrapper
-│   │   │   ├── cloner.go                    # Clone logic with URL verification
+│   │   │   ├── cloner.go                    # Clone/pull logic (provider-agnostic)
 │   │   │   └── cloner_test.go
 │   │   └── mirror/
-│   │       └── orchestrator.go              # Workflow orchestration
+│   │       └── orchestrator.go              # Coordinates providers and cloning
 │   └── pkg/
 │       ├── config/
 │       │   ├── config.go                    # .env parsing & validation
 │       │   └── config_test.go
 │       └── types/
-│           └── types.go                     # Shared data types
+│           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
 └── build/                                   # Build output (git ignored)
     └── codecommit-mirror                    # Compiled binary
 ```
@@ -269,6 +279,102 @@ func (m *mockAccountClient) GetAccountAlias(...) (string, error) { return "test-
 - Tests run fast (no real API calls)
 - Easy to add new implementations (e.g., future git library changes)
 
+## Multi-Provider Architecture
+
+**git-mirror** is architected from the ground up with a plugin-style provider system that makes it straightforward to add support for new Git providers without modifying core orchestration logic.
+
+### Currently Implemented: AWS CodeCommit
+
+**Package Structure:**
+```
+src/internal/aws/
+├── client.go           # AccountClient interface + AWS SDK implementation
+├── cli_executor.go     # AWS CLI wrapper for API calls
+├── discoverer.go       # RepositoryDiscoverer for CodeCommit
+└── discoverer_test.go  # Tests with mocked client
+```
+
+### Adding New Providers
+
+**Required Components:**
+
+1. **Provider Discovery Interface** (implements `RepositoryDiscoverer`)
+   ```go
+   type RepositoryDiscoverer interface {
+     DiscoverRepositories(ctx context.Context, config ProviderConfig) ([]*types.Repository, error)
+   }
+   ```
+   - Discovers all repositories from the provider
+   - Returns normalized `types.Repository` objects
+   - Handles provider-specific authentication and pagination
+
+2. **Provider Configuration**
+   - Add to `.env.example` and `config.go`
+   - Example: `GITHUB_TOKEN`, `GITHUB_ORGS`, `GITLAB_URL`, etc.
+
+3. **Update Orchestrator**
+   - Modify `mirror/orchestrator.go` to handle multiple providers
+   - Each provider can have different concurrency/rate limits
+   - Results aggregated into single output directory structure
+
+### Example: Adding GitHub Support
+
+```go
+// src/internal/github/discoverer.go
+type RepositoryDiscoverer struct {
+  client *github.Client
+  owner  string
+}
+
+func (d *RepositoryDiscoverer) DiscoverRepositories(ctx context.Context, config *types.Config) ([]*types.Repository, error) {
+  // Fetch repos from GitHub API
+  // Return as types.Repository objects
+}
+```
+
+**Configuration:**
+```env
+GIT_PROVIDERS=codecommit,github    # Which providers to use
+GITHUB_TOKEN=ghp_xxxx              # GitHub personal access token
+GITHUB_ORGS=org1,org2              # Organizations to mirror
+```
+
+**Orchestrator Changes:**
+```go
+// Mirror multiple providers in parallel
+providers := []Discoverer{
+  aws.NewDiscoverer(awsConfig),
+  github.NewDiscoverer(githubConfig),
+  gitlab.NewDiscoverer(gitlabConfig),
+}
+
+for _, provider := range providers {
+  repos := provider.DiscoverRepositories(ctx, config)
+  // Clone repos...
+}
+```
+
+### Design Principles for New Providers
+
+1. **Normalize Output**: All providers return `types.Repository` objects
+2. **Consistent Organization**: Use provider name as top-level directory
+   ```
+   mirror_output/
+   ├── codecommit/
+   │   ├── account-alias/
+   │   │   ├── region/
+   │   │   │   └── repo-name/
+   ├── github/
+   │   ├── org-name/
+   │   │   └── repo-name/
+   ├── gitlab/
+   │   ├── group-name/
+   │   │   └── repo-name/
+   ```
+3. **Reuse Git Operations**: Use same `git.Cloner` for all providers
+4. **Handle Rate Limits**: Each provider has different rate limit strategies
+5. **Authentication Flexibility**: Support tokens, SSH keys, OAuth, etc.
+
 ## Important Considerations
 
 ### SSH Key Handling
@@ -279,41 +385,68 @@ func (m *mockAccountClient) GetAccountAlias(...) (string, error) { return "test-
 - Consider validating that the SSH key exists and is readable before starting the mirror process
 
 ### Concurrency
-- Process multiple accounts in parallel (each account gets its own credential context)
-- Clone repositories in parallel across regions within each account
-- Use goroutine pools or semaphores to avoid overwhelming the system or AWS API rate limits
-- Handle context cancellation gracefully (e.g., Ctrl+C during mirror operations)
-- Ensure account-level operations (like STS AssumeRole) are thread-safe
+- Process multiple providers in parallel
+- Within each provider, process accounts/organizations in parallel
+- For CodeCommit: Process regions in parallel within each account
+- Use goroutine pools/semaphores to avoid overwhelming APIs or system resources
+- Handle context cancellation gracefully (e.g., Ctrl+C)
+- Be mindful of rate limits for each provider (may differ significantly)
 
-### AWS API Interactions
-- Always paginate through ListRepositories results (repositories > 25 per region)
-- Handle region errors gracefully; a failed region shouldn't stop other regions
-- For multiple accounts: Use STS AssumeRole to switch between accounts, or manage credentials via AWS credential files
-- Use proper AWS credential chain (env vars, ~/.aws/credentials, IAM role, etc.)
-- Each account should have a separate AWS API session with appropriate credentials
+### Provider-Specific Considerations
+
+**AWS CodeCommit:**
+- Always paginate through ListRepositories results (repos > 25 per region)
+- Handle region errors gracefully; failed regions shouldn't stop others
+- Use STS AssumeRole for cross-account access or manage credentials via `~/.aws/credentials`
+- Use AWS credential chain (env vars, credentials file, IAM role)
+- Each account needs its own credential context
+
+**GitHub (future):**
+- Respect GitHub API rate limits (60 req/hr unauthenticated, 5000 req/hr authenticated)
+- Use pagination for organization repos
+- Handle GitHub organizations and user accounts differently
+- Personal access tokens support OAuth scopes
+
+**GitLab (future):**
+- Support both self-hosted and cloud GitLab instances
+- Handle group hierarchies (nested groups)
+- Respect GitLab API rate limits
+- Support both personal access tokens and OAuth
 
 ### Output Structure
-Cloned repositories follow this directory structure:
+
+Cloned repositories are organized by provider, then provider-specific hierarchy:
+
 ```
 mirror_output/
-├── account-alias-1/
-│   ├── us-east-1/
+├── codecommit/                          # AWS CodeCommit provider
+│   ├── account-alias-1/                 # AWS account alias
+│   │   ├── us-east-1/
+│   │   │   ├── repo-name-1/
+│   │   │   └── repo-name-2/
+│   │   └── eu-west-1/
+│   │       └── repo-name-3/
+│   └── account-alias-2/
+│       ├── us-east-1/
+│       │   └── repo-name-4/
+├── github/                              # GitHub provider (when implemented)
+│   ├── org-name-1/
 │   │   ├── repo-name-1/
 │   │   └── repo-name-2/
-│   ├── eu-west-1/
-│   │   └── repo-name-3/
-├── account-alias-2/
-│   ├── us-east-1/
-│   │   └── repo-name-4/
-│   └── ap-southeast-1/
-│       └── repo-name-5/
+│   └── org-name-2/
+│       └── repo-name-3/
+├── gitlab/                              # GitLab provider (when implemented)
+│   ├── group-name-1/
+│   │   └── repo-name-1/
 ```
 
-- Top level: Account alias (for each account in `AWS_ACCOUNT_IDS`)
-- Second level: AWS region
+**Directory Structure Rules:**
+- Top level: Provider name (`codecommit`, `github`, `gitlab`, etc.)
+- Second level: Account alias (AWS), organization name (GitHub), or group name (GitLab)
+- Third level (CodeCommit only): AWS region
 - Leaf level: Repository names
-- Create directories if they don't exist
-- Handle duplicate repository names across regions or accounts (same name, different regions/accounts)
+- Directories are created automatically if they don't exist
+- Duplicate repository names across providers/accounts/regions are supported (stored in different directories)
 
 ### Existing Repository Handling
 When a repository already exists locally:

@@ -1,17 +1,19 @@
-# AWS CodeCommit Mirror
+# git-mirror
 
-A fast, parallel AWS CodeCommit mirror tool written in Go. Mirror all repositories from one or more AWS accounts across all regions to your local filesystem.
+A fast, parallel Git repository mirror tool written in Go. Mirror repositories from multiple Git providers (AWS CodeCommit, GitHub, GitLab, etc.) to your local filesystem, organized by provider and account/organization.
 
 ## Features
 
-- **Multi-Account Support**: Mirror repositories from multiple AWS accounts in a single run
-- **Multi-Region Support**: Automatically discover all AWS regions or specify a subset
+- **Multi-Provider Support**: Mirror from AWS CodeCommit, GitHub, GitLab, and more (GitHub/GitLab support coming soon)
+- **Multi-Account/Org Support**: Mirror from multiple AWS accounts or GitHub organizations in one run
+- **Multi-Region Support**: For AWS CodeCommit, automatically discover all regions or specify a subset
 - **Parallel Cloning**: Concurrent clone operations for performance
-- **Smart Organization**: Organizes clones as `account_alias/region/repository_name`
+- **Smart Organization**: Organizes clones by provider: `provider/account-or-org/region/repository_name`
 - **Automatic Updates**: Detects existing repos and pulls latest changes
-- **Error Resilience**: Continues if individual repos/regions fail
-- **SSH-Based**: Uses SSH keys for CodeCommit access
+- **Error Resilience**: Continues if individual repos/regions/providers fail
+- **Flexible Authentication**: SSH keys, tokens, and other authentication methods per provider
 - **Configuration via .env**: Simple environment-based configuration
+- **Extensible Architecture**: Plugin-style provider system makes adding new providers straightforward
 
 ## Installation
 
@@ -19,8 +21,10 @@ A fast, parallel AWS CodeCommit mirror tool written in Go. Mirror all repositori
 
 - Go 1.21 or later
 - Git (installed and in PATH)
-- AWS CLI credentials configured (via `~/.aws/credentials` or environment variables)
-- SSH key configured for CodeCommit access
+- Provider credentials configured:
+  - **AWS CodeCommit**: AWS CLI credentials (via `~/.aws/credentials` or environment variables) + SSH key
+  - **GitHub**: Personal access token or SSH key (future support)
+  - **GitLab**: Personal access token or SSH key (future support)
 
 ### Build and Install
 
@@ -165,6 +169,28 @@ make help
 ```
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
+
+## Multi-Provider Support (Roadmap)
+
+The tool is architected to support multiple Git providers beyond AWS CodeCommit:
+
+**Currently Supported:**
+- AWS CodeCommit ✅
+
+**Planned Support:**
+- GitHub (organizations and repositories)
+- GitLab (self-hosted and cloud)
+- Gitea
+- Other Git providers
+
+**Architecture Notes:**
+The codebase uses interface-based dependency injection to separate provider-specific logic from core orchestration. Adding support for new providers requires:
+1. Implement a `RepositoryDiscoverer` for the new provider
+2. Implement provider-specific authentication
+3. Add configuration options for the provider
+4. Update the orchestrator to handle multiple providers in a single run
+
+This design ensures that adding new providers is straightforward and doesn't affect existing functionality.
 
 ## Known Issues
 
