@@ -98,7 +98,6 @@ All configuration is loaded from a `.env` file in the repository root. Required 
 
 ```env
 AWS_ACCOUNT_ID=123456789012         # AWS account ID to mirror
-AWS_REGION=us-east-1                # Primary AWS region for API calls
 SSH_KEY_PATH=/path/to/ssh/key       # Path to SSH private key for CodeCommit
 MIRROR_OUTPUT_DIR=./mirror          # Local directory for cloned repositories
 ```
@@ -106,12 +105,20 @@ MIRROR_OUTPUT_DIR=./mirror          # Local directory for cloned repositories
 Optional variables:
 
 ```env
+AWS_REGIONS=us-east-1,us-west-2,eu-west-1     # Comma-separated list of regions
+                                              # If not set, discovers all regions
 AWS_CREDENTIALS_PROFILE=default     # AWS credentials profile (if using profiles)
 CONCURRENT_CLONES=5                 # Number of concurrent clone operations
 LOG_LEVEL=info                      # Logging level (debug, info, warn, error)
 ```
 
 The tool reads the `.env` file on startup and validates that all required variables are present and valid.
+
+**Regional Discovery**: If `AWS_REGIONS` is not specified, the tool will:
+- Fetch all available AWS regions via the EC2 API
+- Attempt to list CodeCommit repositories in each region
+- Skip regions where CodeCommit is not available
+- Clone from all regions that have repositories
 
 ## Key Files & Packages
 
