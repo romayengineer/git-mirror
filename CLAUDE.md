@@ -289,3 +289,15 @@ When a repository already exists locally:
 - **Error Scenario Tests**: Use mocks to simulate AWS/git failures, timeouts, etc.
 - **Integration Tests** (optional): Use a test AWS account if available for end-to-end testing
 - **Test Coverage Goal**: Aim for high coverage through interface mocking (no external dependencies needed for unit tests)
+
+## Known Issues
+
+**AWS SDK Endpoint Resolution Error:** The tool currently fails when discovering repositories due to an AWS SDK v2 endpoint resolver bug. See [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) for details, workarounds, and recommended solutions.
+
+**Impact:** Blocks repository discovery but does not affect:
+- Configuration loading
+- Credential validation
+- Architecture and design patterns
+- Git operations (once repositories are provided)
+
+**Recommended Fix:** Refactor AWS API calls to use AWS CLI via `os/exec` wrapper instead of SDK (proven working alternative).

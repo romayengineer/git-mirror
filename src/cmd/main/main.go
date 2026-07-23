@@ -21,6 +21,10 @@ func main() {
 }
 
 func run() error {
+	if err := aws.CheckAWSCLIAvailable(); err != nil {
+		return fmt.Errorf("AWS CLI is required but not available: %w", err)
+	}
+
 	envPath := findEnvFile()
 
 	loader := config.NewEnvLoader(envPath)
@@ -29,22 +33,26 @@ func run() error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	accountClient, err := aws.NewAccountClient(cfg.AWSCredentialsProfile)
-	if err != nil {
-		return fmt.Errorf("failed to create AWS client: %w", err)
+	if len(cfg.AccountProfiles) > 0 {
+		for _, profile := range cfg.AccountProfiles {
+			if profile != "" {
+				os.Setenv("AWS_PROFILE", profile)
+				break
+			}
+		}
 	}
 
-	discoverer := aws.NewRepositoryDiscoverer(accountClient)
 	executor := git.NewExecutor()
 	cloner := git.NewCloner(executor)
 
-	orchestrator := mirror.NewOrchestrator(discoverer, cloner, cfg.SSHKeyPath)
+	orchestrator := mirror.NewOrchestrator(cloner, cfg.SSHKeyPath, cfg.AccountProfiles, cfg.AWSDefaultRegion)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
 	fmt.Println("Starting CodeCommit mirror process...")
 	fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
+	fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
 	if len(cfg.AWSRegions) > 0 {
 		fmt.Printf("Regions: %v\n", cfg.AWSRegions)
 	} else {
@@ -52,6 +60,9 @@ func run() error {
 	}
 	fmt.Printf("Output directory: %s\n", cfg.MirrorOutputDir)
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)
+	if len(cfg.AccountProfiles) > 0 {
+		fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
+	}
 
 	startTime := time.Now()
 

@@ -22,7 +22,8 @@ func NewRepositoryDiscoverer(client AccountClient) RepositoryDiscoverer {
 func (d *repositoryDiscoverer) DiscoverRepositories(ctx context.Context, accountID string, regions []string) ([]*types.Repository, error) {
 	accountAlias, err := d.client.GetAccountAlias(ctx, accountID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account alias: %w", err)
+		fmt.Printf("Warning: could not get account alias (using account ID instead): %v\n", err)
+		accountAlias = accountID
 	}
 
 	var regionsToSearch []string

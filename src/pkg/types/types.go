@@ -40,13 +40,15 @@ type MirrorStats struct {
 }
 
 type Config struct {
-	AccountIDs           []string
-	AWSRegions           []string
-	SSHKeyPath           string
-	MirrorOutputDir      string
+	AccountIDs            []string
+	AWSRegions            []string
+	AWSDefaultRegion      string
+	SSHKeyPath            string
+	MirrorOutputDir       string
 	AWSCredentialsProfile string
-	ConcurrentClones     int
-	LogLevel             string
+	AccountProfiles       map[string]string // Maps account ID to AWS profile
+	ConcurrentClones      int
+	LogLevel              string
 }
 
 type AccountInfo struct {

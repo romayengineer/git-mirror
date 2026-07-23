@@ -15,6 +15,8 @@ type Loader interface {
 	Load() (*types.Config, error)
 }
 
+const defaultRegion = "us-east-1"
+
 type envLoader struct {
 	envFilePath string
 }
@@ -84,7 +86,33 @@ func (l *envLoader) Load() (*types.Config, error) {
 		cfg.LogLevel = "info"
 	}
 
+	cfg.AWSDefaultRegion = os.Getenv("AWS_DEFAULT_REGION")
+	if cfg.AWSDefaultRegion == "" {
+		cfg.AWSDefaultRegion = defaultRegion
+	}
+
+	cfg.AccountProfiles = parseAccountProfiles(os.Getenv("AWS_ACCOUNT_PROFILES"))
+
 	return cfg, nil
+}
+
+func parseAccountProfiles(profilesStr string) map[string]string {
+	profiles := make(map[string]string)
+	if profilesStr == "" {
+		return profiles
+	}
+
+	pairs := strings.Split(profilesStr, ",")
+	for _, pair := range pairs {
+		parts := strings.Split(strings.TrimSpace(pair), ":")
+		if len(parts) == 2 {
+			accountID := strings.TrimSpace(parts[0])
+			profileName := strings.TrimSpace(parts[1])
+			profiles[accountID] = profileName
+		}
+	}
+
+	return profiles
 }
 
 func expandPath(path string) (string, error) {

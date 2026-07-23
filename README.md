@@ -141,6 +141,18 @@ make help
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture and development guidelines.
 
+## Known Issues
+
+### AWS SDK Endpoint Resolution Error
+
+The tool currently fails with a `ResolveEndpointV2` error when trying to discover repositories. This is a known issue with AWS SDK v2 (go version 1.21).
+
+**Status:** The AWS credentials ARE valid and working (confirmed with AWS CLI), but the Go SDK cannot resolve service endpoints.
+
+**Workaround:** Use AWS CLI directly to list repositories (see [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for details and recommended solutions).
+
+See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for more information and planned fixes.
+
 ## License
 
 MIT

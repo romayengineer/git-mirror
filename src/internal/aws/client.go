@@ -6,9 +6,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/codecommit"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/iam"
 )
 
 type AccountClient interface {
@@ -27,106 +24,52 @@ type Repository struct {
 }
 
 type awsAccountClient struct {
-	cfg            aws.Config
+	cfg                aws.Config
 	credentialsProfile string
+	cliExecutor        *CLIExecutor
 }
 
-func NewAccountClient(credentialsProfile string) (AccountClient, error) {
-	opts := []func(*config.LoadOptions) error{}
+func NewAccountClient(credentialsProfile, region string) (AccountClient, error) {
+	ctx := context.Background()
 
-	if credentialsProfile != "" && credentialsProfile != "default" {
-		opts = append(opts, config.WithSharedConfigProfile(credentialsProfile))
+	opts := []func(*config.LoadOptions) error{
+		config.WithRegion(region),
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.Background(), opts...)
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+		return nil, fmt.Errorf("failed to load AWS config in region '%s': %w", region, err)
 	}
+
+	creds, err := cfg.Credentials.Retrieve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve AWS credentials for profile '%s': %w", credentialsProfile, err)
+	}
+
+	if creds.AccessKeyID == "" {
+		return nil, fmt.Errorf("AWS credentials for profile '%s' are empty - profile may not exist or have valid credentials", credentialsProfile)
+	}
+
+	if len(creds.AccessKeyID) > 4 {
+		fmt.Printf("DEBUG: AWS client initialized - Profile: %s, Region: %s, AccessKeyID: %s...\n", credentialsProfile, cfg.Region, creds.AccessKeyID[:4])
+	}
+
 
 	return &awsAccountClient{
 		cfg:                cfg,
 		credentialsProfile: credentialsProfile,
+		cliExecutor:        NewCLIExecutor(credentialsProfile),
 	}, nil
 }
 
 func (c *awsAccountClient) GetAccountAlias(ctx context.Context, accountID string) (string, error) {
-	client := iam.NewFromConfig(c.cfg)
-
-	result, err := client.ListAccountAliases(ctx, &iam.ListAccountAliasesInput{})
-	if err != nil {
-		return "", fmt.Errorf("failed to list account aliases: %w", err)
-	}
-
-	if len(result.AccountAliases) > 0 {
-		return result.AccountAliases[0], nil
-	}
-
-	return accountID, nil
+	return c.cliExecutor.GetAccountAlias(ctx, accountID)
 }
 
 func (c *awsAccountClient) ListRegions(ctx context.Context) ([]string, error) {
-	client := ec2.NewFromConfig(c.cfg)
-
-	result, err := client.DescribeRegions(ctx, &ec2.DescribeRegionsInput{
-		AllRegions: aws.Bool(false),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list regions: %w", err)
-	}
-
-	regions := make([]string, 0, len(result.Regions))
-	for _, region := range result.Regions {
-		if region.RegionName != nil {
-			regions = append(regions, *region.RegionName)
-		}
-	}
-
-	return regions, nil
+	return c.cliExecutor.ListRegions(ctx)
 }
 
 func (c *awsAccountClient) ListRepositories(ctx context.Context, region string) ([]*Repository, error) {
-	cfg := c.cfg.Copy()
-	cfg.Region = region
-
-	client := codecommit.NewFromConfig(cfg)
-
-	var repositories []*Repository
-	var repositoryNames []string
-
-	paginator := codecommit.NewListRepositoriesPaginator(client, &codecommit.ListRepositoriesInput{})
-
-	for paginator.HasMorePages() {
-		result, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list repositories in region %s: %w", region, err)
-		}
-
-		for _, repo := range result.Repositories {
-			if repo.RepositoryName != nil {
-				repositoryNames = append(repositoryNames, *repo.RepositoryName)
-			}
-		}
-	}
-
-	if len(repositoryNames) == 0 {
-		return repositories, nil
-	}
-
-	batchResult, err := client.BatchGetRepositories(ctx, &codecommit.BatchGetRepositoriesInput{
-		RepositoryNames: repositoryNames,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to batch get repositories in region %s: %w", region, err)
-	}
-
-	for _, repo := range batchResult.Repositories {
-		repositories = append(repositories, &Repository{
-			Name:        aws.ToString(repo.RepositoryName),
-			SSHCloneURL: aws.ToString(repo.CloneUrlSsh),
-			HTTPCloneURL: aws.ToString(repo.CloneUrlHttp),
-			ARN:         aws.ToString(repo.Arn),
-		})
-	}
-
-	return repositories, nil
+	return c.cliExecutor.ListRepositories(ctx, region)
 }

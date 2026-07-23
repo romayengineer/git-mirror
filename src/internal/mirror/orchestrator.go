@@ -16,16 +16,18 @@ type Orchestrator interface {
 }
 
 type orchestrator struct {
-	discoverer aws.RepositoryDiscoverer
-	cloner     git.Cloner
-	sshKeyPath string
+	cloner         git.Cloner
+	sshKeyPath     string
+	accountProfiles map[string]string
+	defaultRegion  string
 }
 
-func NewOrchestrator(discoverer aws.RepositoryDiscoverer, cloner git.Cloner, sshKeyPath string) Orchestrator {
+func NewOrchestrator(cloner git.Cloner, sshKeyPath string, accountProfiles map[string]string, defaultRegion string) Orchestrator {
 	return &orchestrator{
-		discoverer: discoverer,
-		cloner:     cloner,
-		sshKeyPath: sshKeyPath,
+		cloner:          cloner,
+		sshKeyPath:      sshKeyPath,
+		accountProfiles: accountProfiles,
+		defaultRegion:   defaultRegion,
 	}
 }
 
@@ -43,7 +45,8 @@ func (o *orchestrator) Mirror(ctx context.Context, config *types.Config) (*types
 		wg.Add(1)
 		go func(accID string) {
 			defer wg.Done()
-			o.processAccount(ctx, config, accID, resultsChan, semaphore)
+			profile := o.getProfileForAccount(accID, config.AWSCredentialsProfile)
+			o.processAccount(ctx, config, accID, profile, resultsChan, semaphore)
 		}(accountID)
 	}
 
@@ -65,12 +68,29 @@ func (o *orchestrator) Mirror(ctx context.Context, config *types.Config) (*types
 	return stats, nil
 }
 
-func (o *orchestrator) processAccount(ctx context.Context, config *types.Config, accountID string, resultsChan chan *types.CloneResult, semaphore chan struct{}) {
-	repos, err := o.discoverer.DiscoverRepositories(ctx, accountID, config.AWSRegions)
+func (o *orchestrator) getProfileForAccount(accountID, defaultProfile string) string {
+	if profile, exists := o.accountProfiles[accountID]; exists {
+		return profile
+	}
+	return defaultProfile
+}
+
+func (o *orchestrator) processAccount(ctx context.Context, config *types.Config, accountID, profile string, resultsChan chan *types.CloneResult, semaphore chan struct{}) {
+	accountClient, err := aws.NewAccountClient(profile, o.defaultRegion)
 	if err != nil {
-		fmt.Printf("Error discovering repositories for account %s: %v\n", accountID, err)
+		fmt.Printf("✗ Error creating AWS client for account %s with profile %s: %v\n", accountID, profile, err)
 		return
 	}
+
+	discoverer := aws.NewRepositoryDiscoverer(accountClient)
+	repos, err := discoverer.DiscoverRepositories(ctx, accountID, config.AWSRegions)
+	if err != nil {
+		fmt.Printf("✗ Error discovering repositories for account %s: %v\n", accountID, err)
+		return
+	}
+
+	fmt.Printf("\n📦 Account %s (%s): Found %d repositories\n", accountID, repos[0].AccountAlias, len(repos))
+	fmt.Printf("═══════════════════════════════════════════════════════════════════════\n\n")
 
 	var wg sync.WaitGroup
 	for _, repo := range repos {
