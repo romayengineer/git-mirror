@@ -95,9 +95,12 @@ func run() error {
 }
 
 func findEnvFile() string {
+	homeDir, _ := os.UserHomeDir()
 	candidates := []string{
 		".env",
 		filepath.Join("..", ".env"),
+		filepath.Join(homeDir, ".config", "codecommit-mirror", ".env"),
+		filepath.Join(homeDir, ".codecommit-mirror"),
 	}
 
 	for _, candidate := range candidates {

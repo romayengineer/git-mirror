@@ -2,8 +2,7 @@
 
 # Environment configuration (contains sensitive data)
 .env
-.env.local
-.env.*.local
+.env.bk
 
 # Build artifacts
 /build/
