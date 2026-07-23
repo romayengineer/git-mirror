@@ -33,11 +33,10 @@ func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
 }
 
 func (e *gitCLIExecutor) Pull(repoPath string) error {
-	cmd := exec.Command("git", "-C", repoPath, "pull")
+	cmd := exec.Command("git", "-C", repoPath, "fetch", "--all")
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to pull repository at %s: %w\nOutput: %s", repoPath, err, string(output))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch repository at %s: %w", repoPath, err)
 	}
 
 	return nil
