@@ -101,13 +101,27 @@ func TestDiscovererAliasError(t *testing.T) {
 	ctx := context.Background()
 	mockClient := &mockAccountClient{
 		aliasErr: fmt.Errorf("failed to get alias"),
+		repositoriesToReturn: []*Repository{
+			{
+				Name:        "repo1",
+				SSHCloneURL: "git@codecommit:repo1.git",
+			},
+		},
 	}
 
 	discoverer := NewRepositoryDiscoverer(mockClient)
-	_, err := discoverer.DiscoverRepositories(ctx, "123456789012", []string{"us-east-1"})
+	repos, err := discoverer.DiscoverRepositories(ctx, "123456789012", []string{"us-east-1"})
 
-	if err == nil {
-		t.Fatal("expected error when getting account alias fails")
+	if err != nil {
+		t.Fatalf("expected no error (alias errors are handled gracefully), got %v", err)
+	}
+
+	if len(repos) == 0 {
+		t.Fatal("expected repositories to be discovered despite alias error")
+	}
+
+	if repos[0].AccountAlias != "123456789012" {
+		t.Errorf("expected account alias to fall back to account ID '123456789012', got %s", repos[0].AccountAlias)
 	}
 }
 
