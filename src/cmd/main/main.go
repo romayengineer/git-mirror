@@ -44,7 +44,7 @@ func run() error {
 		}
 	}
 
-	executor := git.NewExecutor()
+	executor := git.NewExecutor(cfg.GitPath)
 	cloner := git.NewCloner(executor)
 
 	codecommitProvider := codecommitprovider.NewCodeCommitProvider(
@@ -63,6 +63,7 @@ func run() error {
 	defer cancel()
 
 	fmt.Println("Starting repository mirror process...")
+	fmt.Printf("Git path: %s\n", cfg.GitPath)
 	fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
 	fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
 	if len(cfg.AWSRegions) > 0 {

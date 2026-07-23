@@ -16,9 +16,9 @@ type Orchestrator interface {
 }
 
 type orchestrator struct {
-	cloner    git.Cloner
+	cloner     git.Cloner
 	sshKeyPath string
-	providers []providers.Provider
+	providers  []providers.Provider
 }
 
 func NewOrchestrator(cloner git.Cloner, sshKeyPath string, providers []providers.Provider) Orchestrator {

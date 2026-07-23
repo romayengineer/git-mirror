@@ -54,7 +54,6 @@ func NewAccountClient(credentialsProfile, region string) (AccountClient, error) 
 		fmt.Printf("DEBUG: AWS client initialized - Profile: %s, Region: %s, AccessKeyID: %s...\n", credentialsProfile, cfg.Region, creds.AccessKeyID[:4])
 	}
 
-
 	return &awsAccountClient{
 		cfg:                cfg,
 		credentialsProfile: credentialsProfile,

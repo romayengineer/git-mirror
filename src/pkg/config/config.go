@@ -93,6 +93,11 @@ func (l *envLoader) Load() (*types.Config, error) {
 
 	cfg.AccountProfiles = parseAccountProfiles(os.Getenv("AWS_ACCOUNT_PROFILES"))
 
+	cfg.GitPath = os.Getenv("GIT_PATH")
+	if cfg.GitPath == "" {
+		cfg.GitPath = "git"
+	}
+
 	return cfg, nil
 }
 

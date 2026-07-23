@@ -23,21 +23,21 @@ type CloneResult struct {
 }
 
 type DiscoveryResult struct {
-	AccountID      string
-	AccountAlias   string
-	Region         string
-	Repositories   []*Repository
-	Error          error
-	TotalCount     int
+	AccountID    string
+	AccountAlias string
+	Region       string
+	Repositories []*Repository
+	Error        error
+	TotalCount   int
 }
 
 type MirrorStats struct {
-	TotalRepositories int
-	SuccessfulClones  int
-	FailedClones      int
+	TotalRepositories   int
+	SuccessfulClones    int
+	FailedClones        int
 	UpdatedRepositories int
-	Duration          string
-	Errors            []string
+	Duration            string
+	Errors              []string
 }
 
 type Config struct {
@@ -50,6 +50,7 @@ type Config struct {
 	AccountProfiles       map[string]string // Maps account ID to AWS profile
 	ConcurrentClones      int
 	LogLevel              string
+	GitPath               string
 }
 
 type AccountInfo struct {

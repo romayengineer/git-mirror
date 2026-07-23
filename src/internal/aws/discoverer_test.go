@@ -7,12 +7,12 @@ import (
 )
 
 type mockAccountClient struct {
-	aliasToReturn      string
-	aliasErr           error
-	regionsToReturn    []string
-	regionsErr         error
+	aliasToReturn        string
+	aliasErr             error
+	regionsToReturn      []string
+	regionsErr           error
 	repositoriesToReturn []*Repository
-	reposErr           error
+	reposErr             error
 }
 
 func (m *mockAccountClient) GetAccountAlias(ctx context.Context, accountID string) (string, error) {
@@ -75,7 +75,7 @@ func TestDiscovererWithSpecificRegions(t *testing.T) {
 func TestDiscovererAutoDiscoverRegions(t *testing.T) {
 	ctx := context.Background()
 	mockClient := &mockAccountClient{
-		aliasToReturn: "test-account",
+		aliasToReturn:   "test-account",
 		regionsToReturn: []string{"us-east-1", "eu-west-1"},
 		repositoriesToReturn: []*Repository{
 			{

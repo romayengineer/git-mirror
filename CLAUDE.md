@@ -185,6 +185,7 @@ AWS_CREDENTIALS_PROFILE=default              # AWS credentials profile (default:
 AWS_ACCOUNT_PROFILES=ID:profile,ID:profile   # Map account IDs to AWS credential profiles
 CONCURRENT_CLONES=5                          # Number of concurrent clone operations (default: 5)
 LOG_LEVEL=info                               # Logging level: debug, info, warn, error (default: info)
+GIT_PATH=git                                 # Path to git executable (default: "git")
 ```
 
 The tool validates all required variables are present on startup.

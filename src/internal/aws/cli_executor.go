@@ -104,10 +104,10 @@ func (c *CLIExecutor) ListRepositories(ctx context.Context, region string) ([]*R
 
 		for _, repo := range batchResult.Repositories {
 			repositories = append(repositories, &Repository{
-				Name:        repo.RepositoryName,
-				SSHCloneURL: repo.CloneURLSsh,
+				Name:         repo.RepositoryName,
+				SSHCloneURL:  repo.CloneURLSsh,
 				HTTPCloneURL: repo.CloneURLHttp,
-				ARN:         repo.Arn,
+				ARN:          repo.Arn,
 			})
 		}
 	}

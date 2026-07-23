@@ -85,6 +85,7 @@ CONCURRENT_CLONES=5
 - `AWS_CREDENTIALS_PROFILE` - AWS credentials profile to use (default: "default")
 - `CONCURRENT_CLONES` - Number of concurrent clone operations (default: 5)
 - `LOG_LEVEL` - Logging level: debug, info, warn, error (default: "info")
+- `GIT_PATH` - Path to git executable (default: "git" - assumes git is in PATH)
 
 ## Usage
 

@@ -9,12 +9,12 @@ import (
 )
 
 type CodeCommitProvider struct {
-	accountIDs       []string
-	regions          []string
-	discoverer       aws.RepositoryDiscoverer
+	accountIDs         []string
+	regions            []string
+	discoverer         aws.RepositoryDiscoverer
 	credentialsProfile string
-	accountProfiles  map[string]string
-	defaultRegion    string
+	accountProfiles    map[string]string
+	defaultRegion      string
 }
 
 func NewCodeCommitProvider(
@@ -25,11 +25,11 @@ func NewCodeCommitProvider(
 	defaultRegion string,
 ) *CodeCommitProvider {
 	return &CodeCommitProvider{
-		accountIDs:        accountIDs,
-		regions:           regions,
+		accountIDs:         accountIDs,
+		regions:            regions,
 		credentialsProfile: credentialsProfile,
-		accountProfiles:   accountProfiles,
-		defaultRegion:     defaultRegion,
+		accountProfiles:    accountProfiles,
+		defaultRegion:      defaultRegion,
 	}
 }
 

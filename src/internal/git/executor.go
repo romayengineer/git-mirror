@@ -14,14 +14,16 @@ type Executor interface {
 	VerifyRepository(repoPath string) error
 }
 
-type gitCLIExecutor struct{}
+type gitCLIExecutor struct {
+	gitPath string
+}
 
-func NewExecutor() Executor {
-	return &gitCLIExecutor{}
+func NewExecutor(gitPath string) Executor {
+	return &gitCLIExecutor{gitPath: gitPath}
 }
 
 func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
-	cmd := exec.Command("git", "clone", url, path)
+	cmd := exec.Command(e.gitPath, "clone", url, path)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath))
 
 	output, err := cmd.CombinedOutput()
@@ -33,7 +35,7 @@ func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
 }
 
 func (e *gitCLIExecutor) Pull(repoPath string) error {
-	cmd := exec.Command("git", "-C", repoPath, "fetch", "--all")
+	cmd := exec.Command(e.gitPath, "-C", repoPath, "fetch", "--all")
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to fetch repository at %s: %w", repoPath, err)
@@ -43,7 +45,7 @@ func (e *gitCLIExecutor) Pull(repoPath string) error {
 }
 
 func (e *gitCLIExecutor) GetOriginURL(repoPath string) (string, error) {
-	cmd := exec.Command("git", "-C", repoPath, "config", "--get", "remote.origin.url")
+	cmd := exec.Command(e.gitPath, "-C", repoPath, "config", "--get", "remote.origin.url")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
