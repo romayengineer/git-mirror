@@ -18,7 +18,7 @@ This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a
 - **Error Resilience**: Continue cloning even if individual regions or repositories fail
 - **Update/Sync Support**: Re-clone existing repositories to pull latest changes
 - **Account Alias Resolution**: Uses AWS account aliases for more readable directory structures
-- **AWS Credential Chain Support**: Works with environment variables, credential files, IAM roles, and STS AssumeRole
+- **AWS Credential Chain Support**: Uses `~/.aws/credentials` profiles with optional STS AssumeRole for cross-account access
 - **Flexible Concurrency**: Configurable number of concurrent clone operations
 - **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no external git library dependencies)
 
@@ -210,7 +210,13 @@ mirror_output/
 - Leaf level: Repository names
 - Create directories if they don't exist
 - Handle duplicate repository names across regions or accounts (same name, different regions/accounts)
-- Skip cloning if a repository already exists locally (add an update flag to re-sync)
+
+### Existing Repository Handling
+When a repository already exists locally:
+1. **Verify the URL**: Check that the git origin URL matches the expected source URL from AWS CodeCommit
+2. **If URL matches**: Pull latest changes (`git pull`) to update the repository
+3. **If URL doesn't match**: Fail with a clear error message (prevents accidental overwrite of mismatched repos)
+4. **Error Recovery**: On URL mismatch, log which repository has the mismatch and continue with other repositories
 
 ## Testing Strategy
 
