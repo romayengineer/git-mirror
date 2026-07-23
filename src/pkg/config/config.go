@@ -106,6 +106,13 @@ func (l *envLoader) Load() (*types.Config, error) {
 		}
 	}
 
+	// GitPathFormat controls path conversion for Windows Git from WSL.
+	// Set to "windows" to use Windows paths (e.g., C:\path) with wgit or other Windows Git.
+	cfg.GitPathFormat = os.Getenv("GIT_PATH_FORMAT")
+	if cfg.GitPathFormat == "" {
+		cfg.GitPathFormat = "linux"
+	}
+
 	return cfg, nil
 }
 

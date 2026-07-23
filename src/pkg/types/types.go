@@ -52,6 +52,10 @@ type Config struct {
 	LogLevel              string
 	GitPath               string
 	LogCommands           bool
+	// GitPathFormat controls path conversion for git commands.
+	// "linux": Use WSL paths (e.g., /mnt/c/path) - works with WSL git
+	// "windows": Convert to Windows paths (e.g., C:\path) - required for Windows Git from WSL
+	GitPathFormat string
 }
 
 type AccountInfo struct {

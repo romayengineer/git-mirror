@@ -84,6 +84,9 @@ git-mirror/
 │       ├── exec/
 │       │   ├── commander.go                 # Command execution abstraction
 │       │   └── commander_test.go            # Tests for Commander interface
+│       ├── path/
+│       │   ├── converter.go                 # WSL to Windows path conversion
+│       │   └── converter_test.go            # Tests for path conversion
 │       └── types/
 │           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
 └── build/                                   # Build output (git ignored)
@@ -189,6 +192,7 @@ AWS_ACCOUNT_PROFILES=ID:profile,ID:profile   # Map account IDs to AWS credential
 CONCURRENT_CLONES=5                          # Number of concurrent clone operations (default: 5)
 LOG_LEVEL=info                               # Logging level: debug, info, warn, error (default: info)
 GIT_PATH=git                                 # Path to git executable (default: "git")
+GIT_PATH_FORMAT=linux                        # Path format for git: "linux" or "windows" (default: "linux")
 LOG_COMMANDS=false                           # Log all executed commands (default: false)
 ```
 
@@ -196,6 +200,31 @@ LOG_COMMANDS=false                           # Log all executed commands (defaul
 ```
 Executing: git clone git@codecommit:test-repo.git /path/to/mirror
 Executing: aws codecommit list-repositories --region us-east-1 --output json
+```
+
+**Git Path Format**: Controls how paths are passed to git commands. Choose based on which git you're using:
+- `linux` (default): Passes paths as `/mnt/c/path` 
+  - Use with: WSL Git, standard Linux git
+  - Correct for WSL environment paths
+  
+- `windows`: Converts paths to `C:\path` format
+  - Use with: Windows Git binaries (e.g., `wgit`) run from WSL
+  - Required because Windows Git doesn't understand `/mnt/` paths
+  - Automatically converts `/mnt/c/mirror/repo` → `C:\mirror\repo`
+
+**Example for Windows Git:**
+```env
+# Using Windows Git (wgit) from WSL
+GIT_PATH=wgit
+GIT_PATH_FORMAT=windows
+```
+
+**Example for WSL Git (default):**
+```env
+# Using WSL Git or standard Linux git
+GIT_PATH=git
+GIT_PATH_FORMAT=linux
+# or just omit GIT_PATH_FORMAT, defaults to linux
 ```
 
 The tool validates all required variables are present on startup.
@@ -226,6 +255,7 @@ AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
 - `src/internal/mirror/`: Orchestration of discovery + cloning workflow
 - `src/pkg/config/`: .env parsing, validation, and configuration struct
 - `src/pkg/exec/`: Command execution abstraction (Commander interface, logging support)
+- `src/pkg/path/`: Path conversion utilities (WSL ↔ Windows path conversion)
 - `src/pkg/types/`: Shared data structures (Repository, Region, CloneResult, etc.)
 
 ## Git Command Implementation
@@ -236,15 +266,19 @@ The tool uses **git CLI commands directly** via Go's `os/exec` package rather th
 - `Pull(repoPath)` — executes `git pull` in an existing repository
 - Other git operations as needed
 
+**Path Format Support:** All paths passed to git are optionally converted from WSL to Windows format (if `GIT_PATH_FORMAT=windows`), enabling use of Windows Git binaries from WSL.
+
 **Advantages:**
 - No external Go dependencies for git functionality
 - Uses system-installed git (familiar, reliable)
-- Easy to debug (can see exact git commands being run)
+- Easy to debug (can see exact git commands being run with `LOG_COMMANDS=true`)
 - Full feature parity with git CLI
+- Support for both WSL Git and Windows Git from WSL
 
 **Requirements:**
 - Git must be installed and available in `$PATH`
 - SSH must be configured for CodeCommit access
+- When using Windows Git from WSL, set `GIT_PATH_FORMAT=windows` for proper path handling
 
 ## Command Execution Abstraction
 
@@ -287,6 +321,72 @@ When `LOG_COMMANDS=true` in configuration, all git and AWS CLI commands are logg
 ```
 Executing: <command> <arg1> <arg2> ...
 ```
+
+## WSL Path Handling
+
+When running on Windows Subsystem for Linux (WSL), paths can be represented in two formats:
+- **WSL format**: `/mnt/c/Users/Admin/Documents/Projects` (used by WSL/Linux tools)
+- **Windows format**: `C:\Users\Admin\Documents\Projects` (used by Windows tools)
+
+### The Problem
+
+If you're using Windows Git (like `wgit`) from WSL, the tool needs to convert paths to Windows format because Windows Git doesn't understand WSL paths. When the tool tries to clone a repository to `/mnt/c/mirror/repo`, Windows Git will fail because it expects `C:\mirror\repo`.
+
+### Solution: GIT_PATH_FORMAT Configuration
+
+Set `GIT_PATH_FORMAT=windows` in your `.env` to automatically convert all git paths from WSL format to Windows format.
+
+**Configuration Example for Windows Git:**
+```env
+GIT_PATH=wgit
+GIT_PATH_FORMAT=windows
+```
+
+### Path Converter Implementation
+
+The path conversion is abstracted through the `PathConverter` interface (`src/pkg/path/converter.go`):
+
+```go
+type PathConverter interface {
+  // Convert transforms a path according to the converter's format
+  Convert(path string) string
+}
+```
+
+**Two implementations:**
+- **`linuxConverter`** — No conversion, paths stay as-is (default)
+  - `/mnt/c/mirror/repo` stays `/mnt/c/mirror/repo`
+  - Used when `GIT_PATH_FORMAT=linux` or not set
+  
+- **`windowsConverter`** — Converts WSL paths to Windows format
+  - `/mnt/c/mirror/repo` becomes `C:\mirror\repo`
+  - `/mnt/d/backups` becomes `D:\backups`
+  - Non-WSL paths are passed through unchanged
+  - Used when `GIT_PATH_FORMAT=windows`
+
+### How It Works
+
+When `GIT_PATH_FORMAT=windows`, the git executor converts every path before passing it to git:
+
+1. User sets `MIRROR_OUTPUT_DIR=/mnt/c/mirror` in `.env`
+2. When cloning a repo, the executor receives path `/mnt/c/mirror/repo-name`
+3. Path converter transforms it to `C:\mirror\repo-name`
+4. Git command receives Windows path it can understand: `wgit clone ... C:\mirror\repo-name`
+
+### Integration Points
+
+- **Configuration** (`src/pkg/config/config.go`): Parses `GIT_PATH_FORMAT` from environment
+- **Config Struct** (`src/pkg/types/types.go`): Stores `GitPathFormat` field
+- **Git Executor** (`src/internal/git/executor.go`): Injects `PathConverter` and applies conversion to all paths
+- **Main** (`src/cmd/main/main.go`): Initializes executor with path format from config
+
+### Testing
+
+The path converter includes comprehensive tests (`src/pkg/path/converter_test.go`) covering:
+- Windows path conversion: `/mnt/c/path` → `C:\path`
+- Case handling: Uppercase drive letter conversion
+- Non-WSL paths: Unchanged when not `/mnt/X/` format
+- Case-insensitive format selection: "windows", "WINDOWS", "linux" all work correctly
 
 ## Dependency Injection Architecture
 

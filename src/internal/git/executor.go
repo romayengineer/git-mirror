@@ -7,18 +7,20 @@ import (
 	"strings"
 
 	"github.com/romayengineer/codecommit-mirror/pkg/exec"
+	"github.com/romayengineer/codecommit-mirror/pkg/path"
 )
 
 type Executor interface {
-	Clone(url, path, sshKeyPath string) error
+	Clone(url, clonePath, sshKeyPath string) error
 	Pull(repoPath string) error
 	GetOriginURL(repoPath string) (string, error)
 	VerifyRepository(repoPath string) error
 }
 
 type gitCLIExecutor struct {
-	gitPath   string
-	commander exec.Commander
+	gitPath       string
+	commander     exec.Commander
+	pathConverter path.PathConverter // Converts paths between WSL and Windows formats as needed
 }
 
 func NewExecutor(gitPath string) Executor {
@@ -26,15 +28,24 @@ func NewExecutor(gitPath string) Executor {
 }
 
 func NewExecutorWithLogging(gitPath string, logCommands bool) Executor {
-	return NewExecutorWithCommander(gitPath, exec.NewCommanderWithLogging(logCommands))
+	return NewExecutorWithPathFormat(gitPath, logCommands, "linux")
 }
 
-func NewExecutorWithCommander(gitPath string, commander exec.Commander) Executor {
-	return &gitCLIExecutor{gitPath: gitPath, commander: commander}
+// NewExecutorWithPathFormat creates a git executor with path format conversion support.
+// pathFormat: "windows" for Windows Git from WSL, "linux" (default) for WSL Git.
+// This allows using Windows Git (e.g., wgit) from WSL by converting paths to Windows format.
+func NewExecutorWithPathFormat(gitPath string, logCommands bool, pathFormat string) Executor {
+	return NewExecutorWithCommander(gitPath, exec.NewCommanderWithLogging(logCommands), path.NewPathConverter(pathFormat))
 }
 
-func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
-	cmd := e.commander.Command(context.Background(), e.gitPath, "clone", url, path)
+func NewExecutorWithCommander(gitPath string, commander exec.Commander, pathConverter path.PathConverter) Executor {
+	return &gitCLIExecutor{gitPath: gitPath, commander: commander, pathConverter: pathConverter}
+}
+
+func (e *gitCLIExecutor) Clone(url, clonePath, sshKeyPath string) error {
+	// Convert path format if needed (e.g., /mnt/c/path -> C:\path for Windows Git)
+	convertedPath := e.pathConverter.Convert(clonePath)
+	cmd := e.commander.Command(context.Background(), e.gitPath, "clone", url, convertedPath)
 	cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath)))
 
 	output, err := cmd.CombinedOutput()
@@ -46,7 +57,9 @@ func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
 }
 
 func (e *gitCLIExecutor) Pull(repoPath string) error {
-	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", repoPath, "fetch", "--all")
+	// Convert path format if needed (e.g., /mnt/c/path -> C:\path for Windows Git)
+	convertedPath := e.pathConverter.Convert(repoPath)
+	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", convertedPath, "fetch", "--all")
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to fetch repository at %s: %w", repoPath, err)
@@ -56,7 +69,9 @@ func (e *gitCLIExecutor) Pull(repoPath string) error {
 }
 
 func (e *gitCLIExecutor) GetOriginURL(repoPath string) (string, error) {
-	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", repoPath, "config", "--get", "remote.origin.url")
+	// Convert path format if needed (e.g., /mnt/c/path -> C:\path for Windows Git)
+	convertedPath := e.pathConverter.Convert(repoPath)
+	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", convertedPath, "config", "--get", "remote.origin.url")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

@@ -44,7 +44,8 @@ func run() error {
 		}
 	}
 
-	executor := git.NewExecutorWithLogging(cfg.GitPath, cfg.LogCommands)
+	// Initialize git executor with support for Windows paths when using Windows Git from WSL
+	executor := git.NewExecutorWithPathFormat(cfg.GitPath, cfg.LogCommands, cfg.GitPathFormat)
 	cloner := git.NewCloner(executor)
 
 	codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
@@ -65,6 +66,9 @@ func run() error {
 
 	fmt.Println("Starting repository mirror process...")
 	fmt.Printf("Git path: %s\n", cfg.GitPath)
+	if cfg.GitPathFormat == "windows" {
+		fmt.Println("Git path format: WINDOWS (WSL paths will be converted to Windows format)")
+	}
 	fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
 	fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
 	if len(cfg.AWSRegions) > 0 {
