@@ -20,6 +20,7 @@ This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a
 - **Account Alias Resolution**: Uses AWS account aliases for more readable directory structures
 - **AWS Credential Chain Support**: Works with environment variables, credential files, IAM roles, and STS AssumeRole
 - **Flexible Concurrency**: Configurable number of concurrent clone operations
+- **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no external git library dependencies)
 
 ## High-Level Architecture
 
@@ -141,10 +142,28 @@ The tool reads the `.env` file on startup and validates that all required variab
 - `src/go.mod` / `src/go.sum`: Dependency management
 - `src/cmd/main/main.go`: Entry point (loads .env and starts orchestration)
 - `src/internal/aws/`: AWS SDK interactions and region enumeration
-- `src/internal/git/`: SSH-based clone and sync operations
+- `src/internal/git/`: Thin wrapper around git CLI commands (clone, pull, etc.)
 - `src/internal/mirror/`: Orchestration of discovery + cloning workflow
 - `src/pkg/config/`: .env parsing, validation, and configuration struct
 - `src/pkg/types/`: Shared data structures (Repository, Region, etc.)
+
+## Git Command Implementation
+
+The tool uses **git CLI commands directly** via Go's `os/exec` package rather than a pure-Go git library. A thin wrapper in `src/internal/git/` encapsulates common git operations:
+
+- `Clone(url, path)` — executes `git clone`
+- `Pull(repoPath)` — executes `git pull` in an existing repository
+- Other git operations as needed
+
+**Advantages:**
+- No external Go dependencies for git functionality
+- Uses system-installed git (familiar, reliable)
+- Easy to debug (can see exact git commands being run)
+- Full feature parity with git CLI
+
+**Requirements:**
+- Git must be installed and available in `$PATH`
+- SSH must be configured for CodeCommit access
 
 ## Important Considerations
 
@@ -152,6 +171,8 @@ The tool reads the `.env` file on startup and validates that all required variab
 - SSH keys are passed as file paths; never embed them in code or logs
 - Ensure proper file permissions (600) are validated before use
 - SSH key errors should fail fast with clear messaging
+- The SSH key path is used by git CLI directly, so it must be in a standard location or explicitly added to ssh-agent
+- Consider validating that the SSH key exists and is readable before starting the mirror process
 
 ### Concurrency
 - Process multiple accounts in parallel (each account gets its own credential context)
