@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/codecommit-mirror/pkg/types"
 )
 
 type Loader interface {

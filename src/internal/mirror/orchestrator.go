@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/internal/aws"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/internal/git"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/codecommit-mirror/internal/aws"
+	"github.com/romayengineer/codecommit-mirror/internal/git"
+	"github.com/romayengineer/codecommit-mirror/pkg/types"
 )
 
 type Orchestrator interface {
@@ -16,10 +16,10 @@ type Orchestrator interface {
 }
 
 type orchestrator struct {
-	cloner         git.Cloner
-	sshKeyPath     string
+	cloner          git.Cloner
+	sshKeyPath      string
 	accountProfiles map[string]string
-	defaultRegion  string
+	defaultRegion   string
 }
 
 func NewOrchestrator(cloner git.Cloner, sshKeyPath string, accountProfiles map[string]string, defaultRegion string) Orchestrator {

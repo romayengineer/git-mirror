@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/internal/aws"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/internal/git"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/internal/mirror"
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/pkg/config"
+	"github.com/romayengineer/codecommit-mirror/internal/aws"
+	"github.com/romayengineer/codecommit-mirror/internal/git"
+	"github.com/romayengineer/codecommit-mirror/internal/mirror"
+	"github.com/romayengineer/codecommit-mirror/pkg/config"
 )
 
 func main() {

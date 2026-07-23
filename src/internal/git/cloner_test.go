@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/maximiliano-romay-figueroa/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/codecommit-mirror/pkg/types"
 )
 
 type mockExecutor struct {
-	cloneErr       error
-	pullErr        error
-	getURLErr      error
-	urlToReturn    string
-	verifyErr      error
+	cloneErr    error
+	pullErr     error
+	getURLErr   error
+	urlToReturn string
+	verifyErr   error
 }
 
 func (m *mockExecutor) Clone(url, path, sshKeyPath string) error {
