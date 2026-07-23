@@ -4,15 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
+
+	"github.com/romayengineer/codecommit-mirror/pkg/exec"
 )
 
 type CLIExecutor struct {
-	profile string
+	profile   string
+	commander exec.Commander
 }
 
 func NewCLIExecutor(profile string) *CLIExecutor {
-	return &CLIExecutor{profile: profile}
+	return NewCLIExecutorWithCommander(profile, exec.NewCommander())
+}
+
+func NewCLIExecutorWithCommander(profile string, commander exec.Commander) *CLIExecutor {
+	return &CLIExecutor{profile: profile, commander: commander}
 }
 
 type cliRepositoryOutput struct {
@@ -39,7 +45,7 @@ func (c *CLIExecutor) ListRepositories(ctx context.Context, region string) ([]*R
 		listArgs = append(listArgs, "--profile", c.profile)
 	}
 
-	cmd := exec.CommandContext(ctx, "aws", listArgs...)
+	cmd := c.commander.Command(ctx, "aws", listArgs...)
 	output, err := cmd.Output()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -86,7 +92,7 @@ func (c *CLIExecutor) ListRepositories(ctx context.Context, region string) ([]*R
 			batchArgs = append(batchArgs, "--profile", c.profile)
 		}
 
-		cmd = exec.CommandContext(ctx, "aws", batchArgs...)
+		cmd := c.commander.Command(ctx, "aws", batchArgs...)
 		output, err = cmd.Output()
 		if err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
@@ -126,7 +132,7 @@ func (c *CLIExecutor) GetAccountAlias(ctx context.Context, accountID string) (st
 		args = append(args, "--profile", c.profile)
 	}
 
-	cmd := exec.CommandContext(ctx, "aws", args...)
+	cmd := c.commander.Command(ctx, "aws", args...)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -161,7 +167,7 @@ func (c *CLIExecutor) ListRegions(ctx context.Context) ([]string, error) {
 		args = append(args, "--profile", c.profile)
 	}
 
-	cmd := exec.CommandContext(ctx, "aws", args...)
+	cmd := c.commander.Command(ctx, "aws", args...)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -190,7 +196,8 @@ func (c *CLIExecutor) ListRegions(ctx context.Context) ([]string, error) {
 
 // CheckAWSCLIAvailable checks if the AWS CLI is available and accessible
 func CheckAWSCLIAvailable() error {
-	cmd := exec.Command("aws", "--version")
+	commander := exec.NewCommander()
+	cmd := commander.Command(context.Background(), "aws", "--version")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("AWS CLI is not available or not installed: %w", err)
 	}

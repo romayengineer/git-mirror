@@ -1,10 +1,12 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/romayengineer/codecommit-mirror/pkg/exec"
 )
 
 type Executor interface {
@@ -15,16 +17,21 @@ type Executor interface {
 }
 
 type gitCLIExecutor struct {
-	gitPath string
+	gitPath   string
+	commander exec.Commander
 }
 
 func NewExecutor(gitPath string) Executor {
-	return &gitCLIExecutor{gitPath: gitPath}
+	return NewExecutorWithCommander(gitPath, exec.NewCommander())
+}
+
+func NewExecutorWithCommander(gitPath string, commander exec.Commander) Executor {
+	return &gitCLIExecutor{gitPath: gitPath, commander: commander}
 }
 
 func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
-	cmd := exec.Command(e.gitPath, "clone", url, path)
-	cmd.Env = append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath))
+	cmd := e.commander.Command(context.Background(), e.gitPath, "clone", url, path)
+	cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath)))
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -35,7 +42,7 @@ func (e *gitCLIExecutor) Clone(url, path, sshKeyPath string) error {
 }
 
 func (e *gitCLIExecutor) Pull(repoPath string) error {
-	cmd := exec.Command(e.gitPath, "-C", repoPath, "fetch", "--all")
+	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", repoPath, "fetch", "--all")
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to fetch repository at %s: %w", repoPath, err)
@@ -45,7 +52,7 @@ func (e *gitCLIExecutor) Pull(repoPath string) error {
 }
 
 func (e *gitCLIExecutor) GetOriginURL(repoPath string) (string, error) {
-	cmd := exec.Command(e.gitPath, "-C", repoPath, "config", "--get", "remote.origin.url")
+	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", repoPath, "config", "--get", "remote.origin.url")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
