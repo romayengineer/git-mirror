@@ -6,6 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an AWS CodeCommit mirror tool written in Go. Given SSH credentials and a list of AWS account IDs, it discovers and clones all CodeCommit repositories across all AWS regions for each account, maintaining a local mirror of all repositories organized by account and region.
 
+## Features
+
+- **Multi-Account Support**: Mirror repositories from multiple AWS accounts in a single run
+- **Multi-Region Support**: Automatically discover and clone from all AWS regions or specify a subset
+- **SSH Authentication**: Uses SSH keys for secure CodeCommit access
+- **Parallel Cloning**: Concurrent clone operations to improve performance across regions and accounts
+- **Smart Directory Organization**: Organizes cloned repositories as `account_alias/region/repository_name`
+- **.env Configuration**: Simple environment variable configuration without CLI flags
+- **Regional Discovery**: Auto-discover available regions or manually specify which regions to clone from
+- **Error Resilience**: Continue cloning even if individual regions or repositories fail
+- **Update/Sync Support**: Re-clone existing repositories to pull latest changes
+- **Account Alias Resolution**: Uses AWS account aliases for more readable directory structures
+- **AWS Credential Chain Support**: Works with environment variables, credential files, IAM roles, and STS AssumeRole
+- **Flexible Concurrency**: Configurable number of concurrent clone operations
+
 ## High-Level Architecture
 
 The tool follows a pipeline for each configured account:
