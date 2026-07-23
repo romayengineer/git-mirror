@@ -22,7 +22,11 @@ type gitCLIExecutor struct {
 }
 
 func NewExecutor(gitPath string) Executor {
-	return NewExecutorWithCommander(gitPath, exec.NewCommander())
+	return NewExecutorWithLogging(gitPath, false)
+}
+
+func NewExecutorWithLogging(gitPath string, logCommands bool) Executor {
+	return NewExecutorWithCommander(gitPath, exec.NewCommanderWithLogging(logCommands))
 }
 
 func NewExecutorWithCommander(gitPath string, commander exec.Commander) Executor {

@@ -2,7 +2,9 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
+	"strings"
 )
 
 type Command interface {
@@ -36,13 +38,27 @@ func (c *osCommand) SetEnv(env []string) {
 	c.cmd.Env = env
 }
 
-type osCommander struct{}
+type osCommander struct {
+	logCommands bool
+}
 
 func (c *osCommander) Command(ctx context.Context, name string, args ...string) Command {
+	if c.logCommands {
+		cmdString := name
+		if len(args) > 0 {
+			cmdString += " " + strings.Join(args, " ")
+		}
+		fmt.Printf("Executing: %s\n", cmdString)
+	}
+
 	cmd := exec.CommandContext(ctx, name, args...)
 	return &osCommand{cmd: cmd}
 }
 
 func NewCommander() Commander {
-	return &osCommander{}
+	return NewCommanderWithLogging(false)
+}
+
+func NewCommanderWithLogging(logCommands bool) Commander {
+	return &osCommander{logCommands: logCommands}
 }

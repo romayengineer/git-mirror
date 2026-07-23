@@ -15,6 +15,7 @@ type CodeCommitProvider struct {
 	credentialsProfile string
 	accountProfiles    map[string]string
 	defaultRegion      string
+	logCommands        bool
 }
 
 func NewCodeCommitProvider(
@@ -24,12 +25,24 @@ func NewCodeCommitProvider(
 	accountProfiles map[string]string,
 	defaultRegion string,
 ) *CodeCommitProvider {
+	return NewCodeCommitProviderWithLogging(accountIDs, regions, credentialsProfile, accountProfiles, defaultRegion, false)
+}
+
+func NewCodeCommitProviderWithLogging(
+	accountIDs []string,
+	regions []string,
+	credentialsProfile string,
+	accountProfiles map[string]string,
+	defaultRegion string,
+	logCommands bool,
+) *CodeCommitProvider {
 	return &CodeCommitProvider{
 		accountIDs:         accountIDs,
 		regions:            regions,
 		credentialsProfile: credentialsProfile,
 		accountProfiles:    accountProfiles,
 		defaultRegion:      defaultRegion,
+		logCommands:        logCommands,
 	}
 }
 
@@ -43,7 +56,7 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 	for _, accountID := range p.accountIDs {
 		profile := p.getProfileForAccount(accountID)
 
-		accountClient, err := aws.NewAccountClient(profile, p.defaultRegion)
+		accountClient, err := aws.NewAccountClientWithLogging(profile, p.defaultRegion, p.logCommands)
 		if err != nil {
 			fmt.Printf("✗ Error creating AWS client for account %s with profile %s: %v\n", accountID, profile, err)
 			continue

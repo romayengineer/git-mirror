@@ -14,7 +14,11 @@ type CLIExecutor struct {
 }
 
 func NewCLIExecutor(profile string) *CLIExecutor {
-	return NewCLIExecutorWithCommander(profile, exec.NewCommander())
+	return NewCLIExecutorWithLogging(profile, false)
+}
+
+func NewCLIExecutorWithLogging(profile string, logCommands bool) *CLIExecutor {
+	return NewCLIExecutorWithCommander(profile, exec.NewCommanderWithLogging(logCommands))
 }
 
 func NewCLIExecutorWithCommander(profile string, commander exec.Commander) *CLIExecutor {

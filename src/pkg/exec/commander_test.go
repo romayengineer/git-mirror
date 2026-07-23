@@ -105,3 +105,23 @@ func TestMockCommand(t *testing.T) {
 		t.Errorf("expected 'test output', got '%s'", string(output))
 	}
 }
+
+func TestCommandLoggingWithArgs(t *testing.T) {
+	commander := NewCommander()
+	ctx := context.Background()
+	// This will print "Executing: echo hello world"
+	cmd := commander.Command(ctx, "echo", "hello", "world")
+	if cmd == nil {
+		t.Error("Command returned nil")
+	}
+}
+
+func TestCommandLoggingNoArgs(t *testing.T) {
+	commander := NewCommander()
+	ctx := context.Background()
+	// This will print "Executing: true"
+	cmd := commander.Command(ctx, "true")
+	if cmd == nil {
+		t.Error("Command returned nil")
+	}
+}

@@ -51,6 +51,7 @@ type Config struct {
 	ConcurrentClones      int
 	LogLevel              string
 	GitPath               string
+	LogCommands           bool
 }
 
 type AccountInfo struct {

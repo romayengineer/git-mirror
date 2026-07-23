@@ -44,15 +44,16 @@ func run() error {
 		}
 	}
 
-	executor := git.NewExecutor(cfg.GitPath)
+	executor := git.NewExecutorWithLogging(cfg.GitPath, cfg.LogCommands)
 	cloner := git.NewCloner(executor)
 
-	codecommitProvider := codecommitprovider.NewCodeCommitProvider(
+	codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
 		cfg.AccountIDs,
 		cfg.AWSRegions,
 		cfg.AWSCredentialsProfile,
 		cfg.AccountProfiles,
 		cfg.AWSDefaultRegion,
+		cfg.LogCommands,
 	)
 
 	providersSlice := []providers.Provider{codecommitProvider}
@@ -75,6 +76,9 @@ func run() error {
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)
 	if len(cfg.AccountProfiles) > 0 {
 		fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
+	}
+	if cfg.LogCommands {
+		fmt.Println("Command logging: ENABLED")
 	}
 
 	startTime := time.Now()

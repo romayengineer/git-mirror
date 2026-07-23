@@ -30,6 +30,10 @@ type awsAccountClient struct {
 }
 
 func NewAccountClient(credentialsProfile, region string) (AccountClient, error) {
+	return NewAccountClientWithLogging(credentialsProfile, region, false)
+}
+
+func NewAccountClientWithLogging(credentialsProfile, region string, logCommands bool) (AccountClient, error) {
 	ctx := context.Background()
 
 	opts := []func(*config.LoadOptions) error{
@@ -57,7 +61,7 @@ func NewAccountClient(credentialsProfile, region string) (AccountClient, error) 
 	return &awsAccountClient{
 		cfg:                cfg,
 		credentialsProfile: credentialsProfile,
-		cliExecutor:        NewCLIExecutor(credentialsProfile),
+		cliExecutor:        NewCLIExecutorWithLogging(credentialsProfile, logCommands),
 	}, nil
 }
 

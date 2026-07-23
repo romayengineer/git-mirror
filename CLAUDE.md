@@ -81,6 +81,9 @@ git-mirror/
 │       ├── config/
 │       │   ├── config.go                    # .env parsing & validation
 │       │   └── config_test.go
+│       ├── exec/
+│       │   ├── commander.go                 # Command execution abstraction
+│       │   └── commander_test.go            # Tests for Commander interface
 │       └── types/
 │           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
 └── build/                                   # Build output (git ignored)
@@ -186,6 +189,13 @@ AWS_ACCOUNT_PROFILES=ID:profile,ID:profile   # Map account IDs to AWS credential
 CONCURRENT_CLONES=5                          # Number of concurrent clone operations (default: 5)
 LOG_LEVEL=info                               # Logging level: debug, info, warn, error (default: info)
 GIT_PATH=git                                 # Path to git executable (default: "git")
+LOG_COMMANDS=false                           # Log all executed commands (default: false)
+```
+
+**Command Logging**: Set `LOG_COMMANDS=true` to see every git and AWS CLI command being executed. Useful for debugging or understanding what the tool is doing:
+```
+Executing: git clone git@codecommit:test-repo.git /path/to/mirror
+Executing: aws codecommit list-repositories --region us-east-1 --output json
 ```
 
 The tool validates all required variables are present on startup.
@@ -215,6 +225,7 @@ AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
 - `src/internal/git/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
 - `src/internal/mirror/`: Orchestration of discovery + cloning workflow
 - `src/pkg/config/`: .env parsing, validation, and configuration struct
+- `src/pkg/exec/`: Command execution abstraction (Commander interface, logging support)
 - `src/pkg/types/`: Shared data structures (Repository, Region, CloneResult, etc.)
 
 ## Git Command Implementation
@@ -235,6 +246,48 @@ The tool uses **git CLI commands directly** via Go's `os/exec` package rather th
 - Git must be installed and available in `$PATH`
 - SSH must be configured for CodeCommit access
 
+## Command Execution Abstraction
+
+The tool abstracts OS command execution through the **`Commander` interface** (`src/pkg/exec/commander.go`) to enable:
+- **Testability**: Mock commands without executing real processes
+- **Logging**: Optional logging of all executed commands (controlled by `LOG_COMMANDS` config)
+- **Flexibility**: Future implementations can swap command execution strategies
+
+**Core Interfaces:**
+```go
+type Command interface {
+  CombinedOutput() ([]byte, error)
+  Run() error
+  Output() ([]byte, error)
+  SetEnv(env []string)
+}
+
+type Commander interface {
+  Command(ctx context.Context, name string, args ...string) Command
+}
+```
+
+**Implementation:**
+- `osCommand` — Wraps `exec.Cmd` with standard output/run methods
+- `osCommander` — Creates commands with context, optionally logs them
+
+**Usage Pattern:**
+```go
+// With logging disabled (default)
+executor := git.NewExecutor(gitPath)
+
+// With logging enabled
+executor := git.NewExecutorWithLogging(gitPath, true)
+```
+
+**Testing:**
+The `Commander` interface is injected into both `git.Executor` and `aws.CLIExecutor`, allowing tests to pass mock implementations that simulate command execution without actually running processes.
+
+When `LOG_COMMANDS=true` in configuration, all git and AWS CLI commands are logged to stdout in the format:
+```
+Executing: <command> <arg1> <arg2> ...
+```
+
 ## Dependency Injection Architecture
 
 The codebase uses **interface-based dependency injection throughout** to maximize testability and flexibility:
@@ -249,6 +302,7 @@ The codebase uses **interface-based dependency injection throughout** to maximiz
 - `aws.AccountClient` — Interface for AWS account-level operations (list regions, get account alias)
 - `aws.RepositoryDiscoverer` — Interface for discovering repositories
 - `git.Executor` — Interface for git CLI operations (clone, pull, verify origin)
+- `exec.Commander` — Interface for OS command execution (create commands, run them, capture output)
 - `config.Loader` — Interface for loading configuration
 - `log.Logger` — Interface for logging (if needed)
 

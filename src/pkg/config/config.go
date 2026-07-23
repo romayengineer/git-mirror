@@ -98,6 +98,14 @@ func (l *envLoader) Load() (*types.Config, error) {
 		cfg.GitPath = "git"
 	}
 
+	logCommandsStr := os.Getenv("LOG_COMMANDS")
+	cfg.LogCommands = false
+	if logCommandsStr != "" {
+		if logCmds, err := strconv.ParseBool(logCommandsStr); err == nil {
+			cfg.LogCommands = logCmds
+		}
+	}
+
 	return cfg, nil
 }
 
