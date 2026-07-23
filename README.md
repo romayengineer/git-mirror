@@ -22,27 +22,52 @@ A fast, parallel AWS CodeCommit mirror tool written in Go. Mirror all repositori
 - AWS CLI credentials configured (via `~/.aws/credentials` or environment variables)
 - SSH key configured for CodeCommit access
 
-### Build
+### Build and Install
 
 ```bash
+# Build only
 make build
 # Output: ./build/codecommit-mirror
+
+# Build and install to ~/.local/bin
+make install
+# Copies binary to ~/.local/bin and creates config directory
+# Next: Edit ~/.config/codecommit-mirror/.env with your settings
 ```
 
 ## Configuration
 
-1. Copy the example configuration:
-   ```bash
-   cp .env.example .env
-   ```
+The tool searches for configuration in this order:
+1. `~/.config/codecommit-mirror/.env` (recommended for user-wide config)
+2. `.env` in the current directory
+3. `../.env` in the parent directory
 
-2. Edit `.env` with your settings:
-   ```env
-   AWS_ACCOUNT_IDS=123456789012,210987654321
-   SSH_KEY_PATH=~/.ssh/id_rsa
-   MIRROR_OUTPUT_DIR=./mirror
-   AWS_REGIONS=us-east-1,eu-west-1
-   ```
+### Setup
+
+```bash
+# Option 1: Quick install (recommended)
+make install
+# Creates ~/.config/codecommit-mirror/.env from template
+# Then edit: nano ~/.config/codecommit-mirror/.env
+
+# Option 2: Manual setup
+cp .env.example ~/.config/codecommit-mirror/.env
+nano ~/.config/codecommit-mirror/.env
+```
+
+### Example Configuration
+
+```env
+# Required settings
+AWS_ACCOUNT_IDS=123456789012,210987654321
+SSH_KEY_PATH=~/.ssh/id_rsa
+MIRROR_OUTPUT_DIR=./mirror
+
+# Optional settings
+AWS_REGIONS=us-east-1,eu-west-1
+AWS_CREDENTIALS_PROFILE=default
+CONCURRENT_CLONES=5
+```
 
 ### Configuration Variables
 
