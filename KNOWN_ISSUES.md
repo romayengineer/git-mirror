@@ -20,8 +20,8 @@ There is a bug in AWS SDK v2 (versions 1.24.0-1.42.x) where the endpoint resolve
 The credentials ARE valid and working:
 ```bash
 # These commands work fine:
-aws sts get-caller-identity --profile your-profile-sparq
-aws codecommit list-repositories --region us-east-1 --profile your-profile-sparq
+aws sts get-caller-identity --profile your-profile
+aws codecommit list-repositories --region us-east-1 --profile your-profile
 ```
 
 But the Go SDK fails with endpoint resolution errors in both the tool and when called directly via AWS SDK APIs.
@@ -40,7 +40,7 @@ But the Go SDK fails with endpoint resolution errors in both the tool and when c
 The tool can be refactored to use AWS CLI commands via `os/exec` instead of the SDK. The CLI is proven to work with these credentials.
 
 ```bash
-aws codecommit list-repositories --region us-east-1 --profile your-profile-sparq --output json
+aws codecommit list-repositories --region us-east-1 --profile your-profile --output json
 ```
 
 **Status:** Not yet implemented  
@@ -68,17 +68,17 @@ Look for an older version of AWS SDK v2 that works with Go 1.21 and doesn't have
 
 **Credentials are valid:**
 ```bash
-$ aws sts get-caller-identity --profile your-profile-sparq
+$ aws sts get-caller-identity --profile your-profile
 {
     "UserId": "AIDAX4ENFON4PAEHSCFJB",
-    "Account": "541461934968",
-    "Arn": "arn:aws:iam::541461934968:user/maximiliano.figueroa@your-profile.net"
+    "Account": "123456789000",
+    "Arn": "arn:aws:iam::123456789000:user/maximiliano.figueroa@your-profile.net"
 }
 ```
 
 **CodeCommit access works:**
 ```bash
-$ aws codecommit list-repositories --region us-east-1 --profile your-profile-sparq
+$ aws codecommit list-repositories --region us-east-1 --profile your-profile
 {
     "repositories": [
         {
@@ -92,7 +92,7 @@ $ aws codecommit list-repositories --region us-east-1 --profile your-profile-spa
 
 **Tool fails with SDK:**
 ```bash
-$ AWS_PROFILE=your-profile-sparq ./build/codecommit-mirror
+$ AWS_PROFILE=your-profile ./build/codecommit-mirror
 # ... 
 Warning: could not get account alias: failed to list account aliases: not found, ResolveEndpointV2
 Warning: failed to list repositories in region us-east-1: not found, ResolveEndpointV2
