@@ -21,15 +21,52 @@ The codebase is structured around these concerns:
 - Concurrency and error handling (parallel cloning across regions)
 - Configuration management (SSH keys, AWS credentials, output directory)
 
+## Repository Structure
+
+```
+codecommit-mirror/
+├── src/                                     # All Go code lives here
+│   ├── cmd/
+│   │   └── main/
+│   │       └── main.go                      # Entry point with CLI flag parsing
+│   ├── internal/
+│   │   ├── aws/
+│   │   │   ├── client.go                    # AWS SDK wrapper/initialization
+│   │   │   ├── discoverer.go                # List repos across regions
+│   │   │   └── discoverer_test.go
+│   │   ├── git/
+│   │   │   ├── cloner.go                    # SSH-based clone logic
+│   │   │   ├── syncer.go                    # Pull/update logic
+│   │   │   └── cloner_test.go
+│   │   └── mirror/
+│   │       ├── orchestrator.go              # Workflow coordination
+│   │       └── orchestrator_test.go
+│   ├── pkg/
+│   │   ├── config/
+│   │   │   └── config.go                    # Config struct & flag parsing
+│   │   └── types/
+│   │       └── types.go                     # Repository, Region types
+│   ├── go.mod
+│   ├── go.sum
+│   └── Makefile                             # Optional: build automation
+├── README.md
+├── CLAUDE.md
+└── .gitignore
+```
+
 ## Development Commands
+
+All commands are run from the `src/` directory.
 
 ### Building
 ```bash
-go build -o codecommit-mirror ./cmd/main.go
+cd src/
+go build -o codecommit-mirror ./cmd/main
 ```
 
 ### Testing
 ```bash
+cd src/
 go test ./...              # Run all tests
 go test -v ./...           # Run with verbose output
 go test ./... -run TestName  # Run specific test
@@ -38,6 +75,7 @@ go test -cover ./...       # Show coverage
 
 ### Linting & Code Quality
 ```bash
+cd src/
 go fmt ./...               # Format code
 go vet ./...               # Vet for common errors
 golangci-lint run          # Full linting (if installed)
@@ -45,18 +83,20 @@ golangci-lint run          # Full linting (if installed)
 
 ### Running
 ```bash
+cd src/
 ./codecommit-mirror -account <ACCOUNT_ID> -ssh-key <PATH_TO_KEY> -output <MIRROR_DIR>
 ./codecommit-mirror --help  # Show available flags
 ```
 
-## Key Configuration Files
+## Key Files & Packages
 
-- `go.mod` / `go.sum`: Dependency management
-- `cmd/main.go`: Entry point (CLI flags and initialization)
-- `internal/`: Core logic (AWS discovery, git operations, concurrency)
-- `internal/aws/`: AWS SDK interactions and region enumeration
-- `internal/git/`: SSH-based clone and sync operations
-- `internal/mirror/`: Orchestration of discovery + cloning workflow
+- `src/go.mod` / `src/go.sum`: Dependency management
+- `src/cmd/main/main.go`: Entry point (CLI flags and initialization)
+- `src/internal/aws/`: AWS SDK interactions and region enumeration
+- `src/internal/git/`: SSH-based clone and sync operations
+- `src/internal/mirror/`: Orchestration of discovery + cloning workflow
+- `src/pkg/config/`: Configuration parsing and validation
+- `src/pkg/types/`: Shared data structures (Repository, Region, etc.)
 
 ## Important Considerations
 
