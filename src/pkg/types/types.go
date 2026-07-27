@@ -53,9 +53,10 @@ type Config struct {
 }
 
 type GitHubConfig struct {
-	Username string
-	Orgs     []string
-	Token    string
+	Username   string
+	Orgs       []string
+	Token      string
+	SSHKeyPath string
 }
 
 type CodeCommitConfig struct {
@@ -65,6 +66,8 @@ type CodeCommitConfig struct {
 	CredentialsProfile    string
 	AccountProfiles       map[string]string
 	LogCommands           bool
+	SSHKeyIDs             map[string]string
+	SSHKeyFiles           map[string]string
 }
 
 type AccountInfo struct {

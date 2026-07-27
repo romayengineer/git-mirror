@@ -137,7 +137,9 @@ func (o *orchestrator) processProvider(ctx context.Context, config *types.Config
 			defer func() { <-semaphore }()
 
 			r.LocalPath = buildLocalPath(config.MirrorOutputDir, r.Provider, r.AccountAlias, r.Region, r.Name)
-			r.SSHKeyPath = o.sshKeyPath
+			if r.SSHKeyPath == "" {
+				r.SSHKeyPath = o.sshKeyPath
+			}
 
 			result := o.cloner.CloneRepository(r)
 			if result.Success {

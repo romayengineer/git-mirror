@@ -1,5 +1,64 @@
 # Known Issues
 
+## Multi-Account / Multi-Provider SSH Key Conflict
+
+### Issue
+When mirroring from multiple CodeCommit accounts (same hostname `git-codecommit.*.amazonaws.com`) and/or multiple Git providers simultaneously, SSH key selection fails because:
+- `~/.ssh/config` can only have one `Host git-codecommit.*.amazonaws.com` block → only one SSH `User` (key ID) at a time
+- Different providers (CodeCommit vs GitHub) need different SSH key files
+- Manually commenting/uncommenting SSH config blocks is error-prone
+
+### Root Cause
+CodeCommit SSH URLs don't include the IAM SSH key ID in the URL — it comes from `~/.ssh/config` via the `User` directive. Since all CodeCommit accounts in the same region share the same hostname, only one account's SSH key ID can be active at a time in `~/.ssh/config`.
+
+### Solution (Implemented)
+The tool now supports per-account SSH identity via environment variables, eliminating the need for `~/.ssh/config` entries for CodeCommit and GitHub:
+
+**Step 1:** Configure per-account SSH key IDs (CodeCommit):
+```env
+CODECOMMIT_SSH_KEY_IDS=123456789012:APKAX4ENFON4GCH7RIJY,210987654321:APKA4YBIPDVQB6DUKUSZ
+```
+These are the `User` values from your `~/.ssh/config` `git-codecommit.*.amazonaws.com` blocks.
+
+**Step 2 (optional):** Configure per-account SSH key files if accounts use different keys:
+```env
+CODECOMMIT_SSH_KEY_FILES=123456789012:~/.ssh/id_rsa,210987654321:~/.ssh/id_other
+```
+Falls back to global `SSH_KEY_PATH` if not set per account.
+
+**Step 3:** Configure GitHub SSH key separately:
+```env
+GITHUB_SSH_KEY_PATH=~/.ssh/id_github_valtirallc
+```
+
+### How It Works
+The tool embeds the SSH key ID directly into the clone URL and uses `GIT_SSH_COMMAND` with the correct key file per repository:
+- `ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo` → `ssh://APKA4YBIPDVQB6DUKUSZ@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo`
+- Each clone/pull uses `GIT_SSH_COMMAND=ssh -i <correct-key> -o StrictHostKeyChecking=no`
+- No `~/.ssh/config` changes needed — both CodeCommit accounts and GitHub work simultaneously
+
+### Configuration Example
+```env
+# Global (fallback)
+SSH_KEY_PATH=~/.ssh/id_rsa
+
+# CodeCommit multi-account
+AWS_ACCOUNT_IDS=123456789012,210987654321
+CODECOMMIT_SSH_KEY_IDS=123456789012:APKAX4ENFON4GCH7RIJY,210987654321:APKA4YBIPDVQB6DUKUSZ
+
+# GitHub
+GITHUB_USERNAME=my-username
+GITHUB_SSH_KEY_PATH=~/.ssh/id_github_valtirallc
+```
+
+You can then comment out or remove the `Host git-codecommit.*.amazonaws.com` and `Host github.com` blocks from `~/.ssh/config`.
+
+### Status
+**Implemented:** 2026-07-27  
+**Files Modified:** `src/pkg/types/types.go`, `src/pkg/config/config.go`, `src/internal/providers/codecommit/provider.go`, `src/internal/providers/github/provider.go`, `src/internal/git/executor.go`, `src/internal/git/cloner.go`, `src/internal/mirror/orchestrator.go`
+
+---
+
 ## AWS SDK Endpoint Resolution Error
 
 ### Issue

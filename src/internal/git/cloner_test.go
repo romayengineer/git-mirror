@@ -26,7 +26,7 @@ func (m *mockExecutor) Clone(url, path, sshKeyPath string) error {
 	return nil
 }
 
-func (m *mockExecutor) Pull(repoPath string) error {
+func (m *mockExecutor) Pull(repoPath, sshKeyPath string) error {
 	return m.pullErr
 }
 

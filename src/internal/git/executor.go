@@ -12,7 +12,7 @@ import (
 
 type Executor interface {
 	Clone(url, clonePath, sshKeyPath string) error
-	Pull(repoPath string) error
+	Pull(repoPath, sshKeyPath string) error
 	GetOriginURL(repoPath string) (string, error)
 	VerifyRepository(repoPath string) error
 }
@@ -57,10 +57,13 @@ func (e *gitCLIExecutor) Clone(url, clonePath, sshKeyPath string) error {
 	return nil
 }
 
-func (e *gitCLIExecutor) Pull(repoPath string) error {
-	// Convert path format if needed (e.g., /mnt/c/path -> C:\path for Windows Git)
+func (e *gitCLIExecutor) Pull(repoPath, sshKeyPath string) error {
 	convertedPath := e.pathConverter.Convert(repoPath)
 	cmd := e.commander.Command(context.Background(), e.gitPath, "-C", convertedPath, "fetch", "--all")
+
+	if sshKeyPath != "" {
+		cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath)))
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to fetch repository at %s: %w", repoPath, err)

@@ -81,7 +81,7 @@ func (c *cloner) handleExistingRepository(repo *types.Repository) *types.CloneRe
 		}
 	}
 
-	if err := c.executor.Pull(repo.LocalPath); err != nil {
+	if err := c.executor.Pull(repo.LocalPath, repo.SSHKeyPath); err != nil {
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,

@@ -3,6 +3,7 @@ package codecommit
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/romayengineer/git-mirror/internal/aws"
 	"github.com/romayengineer/git-mirror/pkg/types"
@@ -39,7 +40,16 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 			continue
 		}
 
+		sshKeyID := p.cfg.SSHKeyIDs[accountID]
+		sshKeyFile := p.cfg.SSHKeyFiles[accountID]
+
 		for _, repo := range repos {
+			if sshKeyID != "" {
+				repo.SSHCloneURL = injectSSHUser(repo.SSHCloneURL, sshKeyID)
+			}
+			if sshKeyFile != "" {
+				repo.SSHKeyPath = sshKeyFile
+			}
 			repo.Provider = p.Name()
 			allRepositories = append(allRepositories, repo)
 		}
@@ -53,4 +63,11 @@ func (p *CodeCommitProvider) getProfileForAccount(accountID string) string {
 		return profile
 	}
 	return p.cfg.CredentialsProfile
+}
+
+func injectSSHUser(url, user string) string {
+	if !strings.HasPrefix(url, "ssh://") {
+		return url
+	}
+	return "ssh://" + user + "@" + url[len("ssh://"):]
 }

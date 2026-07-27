@@ -101,6 +101,12 @@ func parseGitHubConfig() *types.GitHubConfig {
 			cfg.Orgs[i] = strings.TrimSpace(org)
 		}
 	}
+	if v := os.Getenv("GITHUB_SSH_KEY_PATH"); v != "" {
+		expandedPath, err := expandPath(v)
+		if err == nil {
+			cfg.SSHKeyPath = expandedPath
+		}
+	}
 	return cfg
 }
 
@@ -134,6 +140,25 @@ func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
 		cfg.LogCommands = logCmds
 	}
 
+	cfg.SSHKeyIDs = parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_IDS"))
+
+	if keyFilesStr := os.Getenv("CODECOMMIT_SSH_KEY_FILES"); keyFilesStr != "" {
+		pairs := strings.Split(keyFilesStr, ",")
+		keyFiles := make(map[string]string)
+		for _, pair := range pairs {
+			parts := strings.Split(strings.TrimSpace(pair), ":")
+			if len(parts) == 2 {
+				accountID := strings.TrimSpace(parts[0])
+				keyPath := strings.TrimSpace(parts[1])
+				expandedPath, err := expandPath(keyPath)
+				if err == nil {
+					keyFiles[accountID] = expandedPath
+				}
+			}
+		}
+		cfg.SSHKeyFiles = keyFiles
+	}
+
 	return cfg, nil
 }
 
@@ -154,6 +179,23 @@ func parseAccountProfiles(profilesStr string) map[string]string {
 	}
 
 	return profiles
+}
+
+func parseKeyValuePairs(input string) map[string]string {
+	pairs := make(map[string]string)
+	if input == "" {
+		return pairs
+	}
+	items := strings.Split(input, ",")
+	for _, item := range items {
+		parts := strings.Split(strings.TrimSpace(item), ":")
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			pairs[key] = value
+		}
+	}
+	return pairs
 }
 
 func expandPath(path string) (string, error) {

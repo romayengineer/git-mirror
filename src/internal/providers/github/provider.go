@@ -131,5 +131,6 @@ func (p *GitHubProvider) makeRepo(r ghRepo, alias string) *types.Repository {
 		HTTPCloneURL: r.URL,
 		AccountAlias: alias,
 		Provider:     p.Name(),
+		SSHKeyPath:   p.cfg.SSHKeyPath,
 	}
 }
