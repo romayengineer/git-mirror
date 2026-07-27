@@ -12,6 +12,7 @@ import (
 	"github.com/romayengineer/codecommit-mirror/internal/mirror"
 	"github.com/romayengineer/codecommit-mirror/internal/providers"
 	codecommitprovider "github.com/romayengineer/codecommit-mirror/internal/providers/codecommit"
+	githubprovider "github.com/romayengineer/codecommit-mirror/internal/providers/github"
 	"github.com/romayengineer/codecommit-mirror/pkg/config"
 )
 
@@ -48,6 +49,12 @@ func run() error {
 	executor := git.NewExecutorWithPathFormat(cfg.GitPath, cfg.LogCommands, cfg.GitPathFormat)
 	cloner := git.NewCloner(executor)
 
+	if len(cfg.GitHubOrgs) > 0 {
+		if err := githubprovider.CheckGHCLIAvailable(); err != nil {
+			return fmt.Errorf("GitHub CLI (gh) is required but not available: %w", err)
+		}
+	}
+
 	codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
 		cfg.AccountIDs,
 		cfg.AWSRegions,
@@ -58,6 +65,15 @@ func run() error {
 	)
 
 	providersSlice := []providers.Provider{codecommitProvider}
+
+	if len(cfg.GitHubOrgs) > 0 {
+		githubProvider := githubprovider.NewGitHubProviderWithLogging(
+			cfg.GitHubOrgs,
+			cfg.GitHubToken,
+			cfg.LogCommands,
+		)
+		providersSlice = append(providersSlice, githubProvider)
+	}
 
 	orchestrator := mirror.NewOrchestrator(cloner, cfg.SSHKeyPath, providersSlice)
 
@@ -75,6 +91,9 @@ func run() error {
 		fmt.Printf("Regions: %v\n", cfg.AWSRegions)
 	} else {
 		fmt.Println("Regions: All available regions will be discovered")
+	}
+	if len(cfg.GitHubOrgs) > 0 {
+		fmt.Printf("GitHub Orgs: %v\n", cfg.GitHubOrgs)
 	}
 	fmt.Printf("Output directory: %s\n", cfg.MirrorOutputDir)
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)

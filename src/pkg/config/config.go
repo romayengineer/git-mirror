@@ -113,6 +113,15 @@ func (l *envLoader) Load() (*types.Config, error) {
 		cfg.GitPathFormat = "linux"
 	}
 
+	githubOrgs := os.Getenv("GITHUB_ORGS")
+	if githubOrgs != "" {
+		cfg.GitHubOrgs = strings.Split(githubOrgs, ",")
+		for i, org := range cfg.GitHubOrgs {
+			cfg.GitHubOrgs[i] = strings.TrimSpace(org)
+		}
+	}
+	cfg.GitHubToken = os.Getenv("GITHUB_TOKEN")
+
 	return cfg, nil
 }
 
