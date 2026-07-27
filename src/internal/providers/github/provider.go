@@ -19,18 +19,24 @@ type ghRepo struct {
 }
 
 type GitHubProvider struct {
-	user     string
-	orgs     []string
-	token    string
-	client   *http.Client
+	user    string
+	orgs    []string
+	token   string
+	client  *http.Client
+	baseURL string
 }
 
 func NewGitHubProvider(user string, orgs []string, token string) *GitHubProvider {
+	return NewGitHubProviderWithClient(user, orgs, token, &http.Client{Timeout: 30 * time.Second})
+}
+
+func NewGitHubProviderWithClient(user string, orgs []string, token string, client *http.Client) *GitHubProvider {
 	return &GitHubProvider{
-		user:  user,
-		orgs:  orgs,
-		token: token,
-		client: &http.Client{Timeout: 30 * time.Second},
+		user:    user,
+		orgs:    orgs,
+		token:   token,
+		client:  client,
+		baseURL: "https://api.github.com",
 	}
 }
 
@@ -91,7 +97,7 @@ func (p *GitHubProvider) listUserRepositories(ctx context.Context, username stri
 	page := 1
 
 	for {
-		url := fmt.Sprintf("https://api.github.com/users/%s/repos?per_page=100&page=%d&type=owner", username, page)
+		url := fmt.Sprintf("%s/users/%s/repos?per_page=100&page=%d&type=owner", p.baseURL, username, page)
 		repos, err := p.fetchPage(ctx, url)
 		if err != nil {
 			return nil, err
@@ -114,7 +120,7 @@ func (p *GitHubProvider) listOrgRepositories(ctx context.Context, org string) ([
 	page := 1
 
 	for {
-		url := fmt.Sprintf("https://api.github.com/orgs/%s/repos?per_page=100&page=%d", org, page)
+		url := fmt.Sprintf("%s/orgs/%s/repos?per_page=100&page=%d", p.baseURL, org, page)
 		repos, err := p.fetchPage(ctx, url)
 		if err != nil {
 			return nil, err
