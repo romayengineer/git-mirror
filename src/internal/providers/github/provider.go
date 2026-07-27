@@ -4,34 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io"
+	"net/http"
 	"strings"
+	"time"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/exec"
 	"github.com/romayengineer/codecommit-mirror/pkg/types"
 )
 
 type ghRepo struct {
 	Name   string `json:"name"`
-	SSHUrl string `json:"sshUrl"`
-	Url    string `json:"url"`
+	SSHUrl string `json:"ssh_url"`
+	URL    string `json:"html_url"`
 }
 
 type GitHubProvider struct {
-	orgs      []string
-	token     string
-	commander exec.Commander
+	orgs  []string
+	token string
+	client *http.Client
 }
 
 func NewGitHubProvider(orgs []string, token string) *GitHubProvider {
-	return NewGitHubProviderWithLogging(orgs, token, false)
-}
-
-func NewGitHubProviderWithLogging(orgs []string, token string, logCommands bool) *GitHubProvider {
 	return &GitHubProvider{
-		orgs:      orgs,
-		token:     token,
-		commander: exec.NewCommanderWithLogging(logCommands),
+		orgs:  orgs,
+		token: token,
+		client: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -58,8 +55,7 @@ func (p *GitHubProvider) DiscoverRepositories(ctx context.Context) ([]*types.Rep
 			allRepositories = append(allRepositories, &types.Repository{
 				Name:         repo.Name,
 				SSHCloneURL:  repo.SSHUrl,
-				HTTPCloneURL: repo.Url,
-				AccountID:    "",
+				HTTPCloneURL: repo.URL,
 				AccountAlias: org,
 				Region:       "",
 				Provider:     p.Name(),
@@ -71,38 +67,53 @@ func (p *GitHubProvider) DiscoverRepositories(ctx context.Context) ([]*types.Rep
 }
 
 func (p *GitHubProvider) listOrgRepositories(ctx context.Context, org string) ([]ghRepo, error) {
-	args := []string{"repo", "list", org, "--limit", "1000", "--json", "name,sshUrl,url"}
-	cmd := p.commander.Command(ctx, "gh", args...)
+	var allRepos []ghRepo
+	page := 1
 
-	if p.token != "" {
-		cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GH_TOKEN=%s", p.token)))
-	}
-
-	output, err := cmd.Output()
-	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("gh command timed out for org %s", org)
+	for {
+		url := fmt.Sprintf("https://api.github.com/orgs/%s/repos?per_page=100&page=%d", org, page)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
-		return nil, fmt.Errorf("failed to execute gh repo list for org %s: %w", org, err)
+
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		if p.token != "" {
+			req.Header.Set("Authorization", "Bearer "+p.token)
+		}
+
+		resp, err := p.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch repos for org %s: %w", org, err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body for org %s: %w", org, err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GitHub API returned %d for org %s: %s", resp.StatusCode, org, string(body))
+		}
+
+		var repos []ghRepo
+		if err := json.Unmarshal(body, &repos); err != nil {
+			return nil, fmt.Errorf("failed to parse GitHub API response for org %s: %w", org, err)
+		}
+
+		if len(repos) == 0 {
+			break
+		}
+
+		allRepos = append(allRepos, repos...)
+
+		if len(repos) < 100 {
+			break
+		}
+
+		page++
 	}
 
-	if len(output) == 0 || string(output) == "[]" {
-		return []ghRepo{}, nil
-	}
-
-	var repos []ghRepo
-	if err := json.Unmarshal(output, &repos); err != nil {
-		return nil, fmt.Errorf("failed to parse gh output for org %s: %w", org, err)
-	}
-
-	return repos, nil
-}
-
-func CheckGHCLIAvailable() error {
-	commander := exec.NewCommander()
-	cmd := commander.Command(context.Background(), "gh", "--version")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("GitHub CLI (gh) is not available or not installed: %w", err)
-	}
-	return nil
+	return allRepos, nil
 }

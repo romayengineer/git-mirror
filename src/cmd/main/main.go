@@ -64,14 +64,9 @@ func run() error {
 	}
 
 	if len(cfg.GitHubOrgs) > 0 {
-		if err := githubprovider.CheckGHCLIAvailable(); err != nil {
-			return fmt.Errorf("GitHub CLI (gh) is required but not available: %w", err)
-		}
-
-		githubProvider := githubprovider.NewGitHubProviderWithLogging(
+		githubProvider := githubprovider.NewGitHubProvider(
 			cfg.GitHubOrgs,
 			cfg.GitHubToken,
-			cfg.LogCommands,
 		)
 		providersSlice = append(providersSlice, githubProvider)
 	}
