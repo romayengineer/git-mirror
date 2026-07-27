@@ -24,10 +24,6 @@ func main() {
 }
 
 func run() error {
-	if err := aws.CheckAWSCLIAvailable(); err != nil {
-		return fmt.Errorf("AWS CLI is required but not available: %w", err)
-	}
-
 	envPath := findEnvFile()
 
 	loader := config.NewEnvLoader(envPath)
@@ -36,37 +32,42 @@ func run() error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	if len(cfg.AccountProfiles) > 0 {
-		for _, profile := range cfg.AccountProfiles {
-			if profile != "" {
-				os.Setenv("AWS_PROFILE", profile)
-				break
-			}
-		}
-	}
-
 	// Initialize git executor with support for Windows paths when using Windows Git from WSL
 	executor := git.NewExecutorWithPathFormat(cfg.GitPath, cfg.LogCommands, cfg.GitPathFormat)
 	cloner := git.NewCloner(executor)
+
+	var providersSlice []providers.Provider
+
+	if len(cfg.AccountIDs) > 0 {
+		if err := aws.CheckAWSCLIAvailable(); err != nil {
+			return fmt.Errorf("AWS CLI is required but not available: %w", err)
+		}
+
+		if len(cfg.AccountProfiles) > 0 {
+			for _, profile := range cfg.AccountProfiles {
+				if profile != "" {
+					os.Setenv("AWS_PROFILE", profile)
+					break
+				}
+			}
+		}
+
+		codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
+			cfg.AccountIDs,
+			cfg.AWSRegions,
+			cfg.AWSCredentialsProfile,
+			cfg.AccountProfiles,
+			cfg.AWSDefaultRegion,
+			cfg.LogCommands,
+		)
+		providersSlice = append(providersSlice, codecommitProvider)
+	}
 
 	if len(cfg.GitHubOrgs) > 0 {
 		if err := githubprovider.CheckGHCLIAvailable(); err != nil {
 			return fmt.Errorf("GitHub CLI (gh) is required but not available: %w", err)
 		}
-	}
 
-	codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
-		cfg.AccountIDs,
-		cfg.AWSRegions,
-		cfg.AWSCredentialsProfile,
-		cfg.AccountProfiles,
-		cfg.AWSDefaultRegion,
-		cfg.LogCommands,
-	)
-
-	providersSlice := []providers.Provider{codecommitProvider}
-
-	if len(cfg.GitHubOrgs) > 0 {
 		githubProvider := githubprovider.NewGitHubProviderWithLogging(
 			cfg.GitHubOrgs,
 			cfg.GitHubToken,
@@ -85,21 +86,23 @@ func run() error {
 	if cfg.GitPathFormat == "windows" {
 		fmt.Println("Git path format: WINDOWS (WSL paths will be converted to Windows format)")
 	}
-	fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
-	fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
-	if len(cfg.AWSRegions) > 0 {
-		fmt.Printf("Regions: %v\n", cfg.AWSRegions)
-	} else {
-		fmt.Println("Regions: All available regions will be discovered")
+	if len(cfg.AccountIDs) > 0 {
+		fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
+		fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
+		if len(cfg.AWSRegions) > 0 {
+			fmt.Printf("Regions: %v\n", cfg.AWSRegions)
+		} else {
+			fmt.Println("Regions: All available regions will be discovered")
+		}
+		if len(cfg.AccountProfiles) > 0 {
+			fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
+		}
 	}
 	if len(cfg.GitHubOrgs) > 0 {
 		fmt.Printf("GitHub Orgs: %v\n", cfg.GitHubOrgs)
 	}
 	fmt.Printf("Output directory: %s\n", cfg.MirrorOutputDir)
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)
-	if len(cfg.AccountProfiles) > 0 {
-		fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
-	}
 	if cfg.LogCommands {
 		fmt.Println("Command logging: ENABLED")
 	}

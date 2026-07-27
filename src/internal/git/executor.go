@@ -43,10 +43,11 @@ func NewExecutorWithCommander(gitPath string, commander exec.Commander, pathConv
 }
 
 func (e *gitCLIExecutor) Clone(url, clonePath, sshKeyPath string) error {
-	// Convert path format if needed (e.g., /mnt/c/path -> C:\path for Windows Git)
 	convertedPath := e.pathConverter.Convert(clonePath)
 	cmd := e.commander.Command(context.Background(), e.gitPath, "clone", url, convertedPath)
-	cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath)))
+	if sshKeyPath != "" {
+		cmd.SetEnv(append(os.Environ(), fmt.Sprintf("GIT_SSH_COMMAND=ssh -i %s -o StrictHostKeyChecking=no", sshKeyPath)))
+	}
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

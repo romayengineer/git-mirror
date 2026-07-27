@@ -33,26 +33,24 @@ func (l *envLoader) Load() (*types.Config, error) {
 	cfg := &types.Config{}
 
 	accountIDs := os.Getenv("AWS_ACCOUNT_IDS")
-	if accountIDs == "" {
-		return nil, fmt.Errorf("AWS_ACCOUNT_IDS is required")
-	}
-	cfg.AccountIDs = strings.Split(accountIDs, ",")
-	for i, id := range cfg.AccountIDs {
-		cfg.AccountIDs[i] = strings.TrimSpace(id)
+	if accountIDs != "" {
+		cfg.AccountIDs = strings.Split(accountIDs, ",")
+		for i, id := range cfg.AccountIDs {
+			cfg.AccountIDs[i] = strings.TrimSpace(id)
+		}
 	}
 
 	sshKeyPath := os.Getenv("SSH_KEY_PATH")
-	if sshKeyPath == "" {
-		return nil, fmt.Errorf("SSH_KEY_PATH is required")
+	if sshKeyPath != "" {
+		expandedPath, err := expandPath(sshKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand SSH_KEY_PATH: %w", err)
+		}
+		if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("SSH key file does not exist: %s", expandedPath)
+		}
+		cfg.SSHKeyPath = expandedPath
 	}
-	expandedPath, err := expandPath(sshKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand SSH_KEY_PATH: %w", err)
-	}
-	if _, err := os.Stat(expandedPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("SSH key file does not exist: %s", expandedPath)
-	}
-	cfg.SSHKeyPath = expandedPath
 
 	mirrorDir := os.Getenv("MIRROR_OUTPUT_DIR")
 	if mirrorDir == "" {
@@ -121,6 +119,10 @@ func (l *envLoader) Load() (*types.Config, error) {
 		}
 	}
 	cfg.GitHubToken = os.Getenv("GITHUB_TOKEN")
+
+	if len(cfg.AccountIDs) == 0 && len(cfg.GitHubOrgs) == 0 {
+		return nil, fmt.Errorf("at least one provider must be configured: set AWS_ACCOUNT_IDS, GITHUB_ORGS, or both")
+	}
 
 	return cfg, nil
 }
