@@ -23,6 +23,7 @@ The tool uses a plugin-style provider architecture with an interface-based desig
 - **Provider-Specific Authentication**: Each provider handles its own auth (AWS CLI profiles, GitHub tokens, etc.)
 - **Account/Org Aliases**: Uses readable aliases instead of just IDs (AWS account names, GitHub usernames/org names)
 - **Flexible Concurrency**: Configurable concurrent clone operations
+- **Live Progress Display**: Real-time animated progress bars per repo via `mpb` — shows spinner while cloning, ✓/✗ on completion
 - **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no git library dependencies)
 - **GitHub HTTP API**: GitHub provider uses direct HTTP calls via `net/http` — no external CLI dependency
 - **WSL Path Conversion**: Optional Windows path format for using Windows Git from WSL
@@ -317,7 +318,7 @@ This replaces the previous pattern of multiple constructor variants (e.g., `NewX
   - Config file search order: `~/.config/git-mirror/.env` → `.env` → `../.env`
 - `src/internal/aws/`: AWS SDK interactions and region enumeration (uses CLI wrapper for discovery)
 - `src/internal/git/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
-- `src/internal/mirror/`: Orchestration of discovery + cloning workflow
+- `src/internal/mirror/`: Orchestration of discovery + cloning workflow with `mpb` progress bars
 - `src/pkg/config/`: .env parsing, validation, and configuration struct
 - `src/pkg/exec/`: Command execution abstraction (Commander interface, logging support)
 - `src/pkg/path/`: Path conversion utilities (WSL ↔ Windows path conversion)

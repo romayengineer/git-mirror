@@ -32,83 +32,68 @@ func (c *cloner) CloneRepository(repo *types.Repository) *types.CloneResult {
 	}
 
 	if err := c.ensureDirectoryExists(repo.LocalPath); err != nil {
-		msg := fmt.Sprintf("failed to create directory: %v", err)
-		fmt.Printf("[%s/%s] ✗ %s\n", repo.AccountAlias, repo.Region, msg)
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
 			Error:      err,
-			Message:    msg,
+			Message:    fmt.Sprintf("failed to create directory: %v", err),
 		}
 	}
 
 	if c.repositoryExists(repo.LocalPath) {
-		fmt.Printf("[%s/%s] → %s (checking for updates)\n", repo.AccountAlias, repo.Region, repo.Name)
 		return c.handleExistingRepository(repo)
 	}
 
-	fmt.Printf("[%s/%s] ⏳ %s (cloning...)\n", repo.AccountAlias, repo.Region, repo.Name)
 	if err := c.executor.Clone(repo.SSHCloneURL, repo.LocalPath, repo.SSHKeyPath); err != nil {
 		os.RemoveAll(repo.LocalPath)
-		msg := fmt.Sprintf("failed to clone repository: %v", err)
-		fmt.Printf("[%s/%s] ✗ %s\n", repo.AccountAlias, repo.Region, msg)
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
 			Error:      err,
-			Message:    msg,
+			Message:    fmt.Sprintf("failed to clone repository: %v", err),
 		}
 	}
 
-	fmt.Printf("[%s/%s] ✓ %s (cloned)\n", repo.AccountAlias, repo.Region, repo.Name)
 	return &types.CloneResult{
 		Repository: repo,
 		Success:    true,
-		Message:    "repository cloned successfully",
+		Message:    "cloned",
 	}
 }
 
 func (c *cloner) handleExistingRepository(repo *types.Repository) *types.CloneResult {
 	currentURL, err := c.executor.GetOriginURL(repo.LocalPath)
 	if err != nil {
-		msg := fmt.Sprintf("failed to verify existing repository: %v", err)
-		fmt.Printf("[%s/%s] ✗ %s\n", repo.AccountAlias, repo.Region, msg)
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
 			Error:      err,
-			Message:    msg,
+			Message:    fmt.Sprintf("failed to verify existing repository: %v", err),
 		}
 	}
 
 	if !urlsMatch(currentURL, repo.SSHCloneURL) {
-		msg := fmt.Sprintf("URL mismatch (existing: %s, expected: %s)", currentURL, repo.SSHCloneURL)
-		fmt.Printf("[%s/%s] ✗ %s\n", repo.AccountAlias, repo.Region, msg)
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
 			Error:      fmt.Errorf("URL mismatch: existing=%s, expected=%s", currentURL, repo.SSHCloneURL),
-			Message:    msg,
+			Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s)", currentURL, repo.SSHCloneURL),
 		}
 	}
 
-	fmt.Printf("[%s/%s] ⏳ %s (pulling latest...)\n", repo.AccountAlias, repo.Region, repo.Name)
 	if err := c.executor.Pull(repo.LocalPath); err != nil {
-		msg := fmt.Sprintf("failed to pull latest changes: %v", err)
-		fmt.Printf("[%s/%s] ✗ %s\n", repo.AccountAlias, repo.Region, msg)
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
 			Error:      err,
-			Message:    msg,
+			Message:    fmt.Sprintf("failed to pull latest changes: %v", err),
 		}
 	}
 
-	fmt.Printf("[%s/%s] ✓ %s (updated)\n", repo.AccountAlias, repo.Region, repo.Name)
 	return &types.CloneResult{
 		Repository: repo,
 		Success:    true,
-		Message:    "repository updated with latest changes",
+		Message:    "updated",
 	}
 }
 

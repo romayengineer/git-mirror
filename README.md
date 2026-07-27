@@ -9,6 +9,7 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 - **Multi-Region Support** (CodeCommit): Auto-discover all AWS regions or specify a subset
 - **GitHub User + Org Repos**: Mirror personal repos via `GITHUB_USERNAME` and/or org repos via `GITHUB_ORGS`
 - **Parallel Cloning**: Concurrent clone operations for performance
+- **Live Progress Display**: Real-time animated progress bars per repo — shows spinner while cloning, ✓/✗ on completion
 - **Smart Directory Organization**: Organizes clones as `provider/account-or-org/[region/]repository_name`
 - **Automatic Updates**: Detect existing repos and pull latest changes
 - **Error Resilience**: Continue if individual repos/regions/providers fail
