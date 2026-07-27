@@ -19,23 +19,15 @@ type ghRepo struct {
 }
 
 type GitHubProvider struct {
-	user    string
-	orgs    []string
-	token   string
+	cfg     *types.GitHubConfig
 	client  *http.Client
 	baseURL string
 }
 
-func NewGitHubProvider(user string, orgs []string, token string) *GitHubProvider {
-	return NewGitHubProviderWithClient(user, orgs, token, &http.Client{Timeout: 30 * time.Second})
-}
-
-func NewGitHubProviderWithClient(user string, orgs []string, token string, client *http.Client) *GitHubProvider {
+func NewGitHubProvider(cfg *types.GitHubConfig) *GitHubProvider {
 	return &GitHubProvider{
-		user:    user,
-		orgs:    orgs,
-		token:   token,
-		client:  client,
+		cfg:     cfg,
+		client:  &http.Client{Timeout: 30 * time.Second},
 		baseURL: "https://api.github.com",
 	}
 }
@@ -47,64 +39,81 @@ func (p *GitHubProvider) Name() string {
 func (p *GitHubProvider) DiscoverRepositories(ctx context.Context) ([]*types.Repository, error) {
 	var allRepositories []*types.Repository
 
-	if p.user != "" {
-		repos, err := p.listUserRepositories(ctx, p.user)
+	if p.cfg.Username != "" {
+		path := fmt.Sprintf("/users/%s/repos?type=owner", p.cfg.Username)
+		repos, err := p.listRepos(ctx, path)
 		if err != nil {
-			fmt.Printf("✗ Error listing repositories for GitHub user %s: %v\n", p.user, err)
+			fmt.Printf("✗ Error listing repositories for GitHub user %s: %v\n", p.cfg.Username, err)
 		} else {
 			for _, repo := range repos {
-				allRepositories = append(allRepositories, &types.Repository{
-					Name:         repo.Name,
-					SSHCloneURL:  repo.SSHUrl,
-					HTTPCloneURL: repo.URL,
-					AccountAlias: p.user,
-					Region:       "",
-					Provider:     p.Name(),
-				})
+				allRepositories = append(allRepositories, p.makeRepo(repo, p.cfg.Username))
 			}
 		}
 	}
 
-	for _, org := range p.orgs {
+	for _, org := range p.cfg.Orgs {
 		org = strings.TrimSpace(org)
 		if org == "" {
 			continue
 		}
-
-		repos, err := p.listOrgRepositories(ctx, org)
+		path := fmt.Sprintf("/orgs/%s/repos", org)
+		repos, err := p.listRepos(ctx, path)
 		if err != nil {
 			fmt.Printf("✗ Error listing repositories for GitHub org %s: %v\n", org, err)
 			continue
 		}
-
 		for _, repo := range repos {
-			allRepositories = append(allRepositories, &types.Repository{
-				Name:         repo.Name,
-				SSHCloneURL:  repo.SSHUrl,
-				HTTPCloneURL: repo.URL,
-				AccountAlias: org,
-				Region:       "",
-				Provider:     p.Name(),
-			})
+			allRepositories = append(allRepositories, p.makeRepo(repo, org))
 		}
 	}
 
 	return allRepositories, nil
 }
 
-func (p *GitHubProvider) listUserRepositories(ctx context.Context, username string) ([]ghRepo, error) {
+func (p *GitHubProvider) listRepos(ctx context.Context, path string) ([]ghRepo, error) {
 	var allRepos []ghRepo
 	page := 1
 
 	for {
-		url := fmt.Sprintf("%s/users/%s/repos?per_page=100&page=%d&type=owner", p.baseURL, username, page)
-		repos, err := p.fetchPage(ctx, url)
-		if err != nil {
-			return nil, err
+		url := fmt.Sprintf("%s%s&per_page=100&page=%d", p.baseURL, path, page)
+		if !strings.Contains(path, "?") {
+			url = fmt.Sprintf("%s%s?per_page=100&page=%d", p.baseURL, path, page)
 		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		if p.cfg.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+p.cfg.Token)
+		}
+
+		resp, err := p.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch %s: %w", url, err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var repos []ghRepo
+		if err := json.Unmarshal(body, &repos); err != nil {
+			return nil, fmt.Errorf("failed to parse GitHub API response: %w", err)
+		}
+
 		if len(repos) == 0 {
 			break
 		}
+
 		allRepos = append(allRepos, repos...)
 		if len(repos) < 100 {
 			break
@@ -115,59 +124,12 @@ func (p *GitHubProvider) listUserRepositories(ctx context.Context, username stri
 	return allRepos, nil
 }
 
-func (p *GitHubProvider) listOrgRepositories(ctx context.Context, org string) ([]ghRepo, error) {
-	var allRepos []ghRepo
-	page := 1
-
-	for {
-		url := fmt.Sprintf("%s/orgs/%s/repos?per_page=100&page=%d", p.baseURL, org, page)
-		repos, err := p.fetchPage(ctx, url)
-		if err != nil {
-			return nil, err
-		}
-		if len(repos) == 0 {
-			break
-		}
-		allRepos = append(allRepos, repos...)
-		if len(repos) < 100 {
-			break
-		}
-		page++
+func (p *GitHubProvider) makeRepo(r ghRepo, alias string) *types.Repository {
+	return &types.Repository{
+		Name:         r.Name,
+		SSHCloneURL:  r.SSHUrl,
+		HTTPCloneURL: r.URL,
+		AccountAlias: alias,
+		Provider:     p.Name(),
 	}
-
-	return allRepos, nil
-}
-
-func (p *GitHubProvider) fetchPage(ctx context.Context, url string) ([]ghRepo, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	if p.token != "" {
-		req.Header.Set("Authorization", "Bearer "+p.token)
-	}
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, string(body))
-	}
-
-	var repos []ghRepo
-	if err := json.Unmarshal(body, &repos); err != nil {
-		return nil, fmt.Errorf("failed to parse GitHub API response: %w", err)
-	}
-
-	return repos, nil
 }

@@ -7,7 +7,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/romayengineer/codecommit-mirror/pkg/types"
 )
+
+func newTestProvider(cfg *types.GitHubConfig, serverURL string, client *http.Client) *GitHubProvider {
+	return &GitHubProvider{
+		cfg:     cfg,
+		client:  client,
+		baseURL: serverURL,
+	}
+}
 
 func TestDiscoverRepositoriesUserRepos(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,8 +38,7 @@ func TestDiscoverRepositoriesUserRepos(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", nil, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser"}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -57,8 +66,7 @@ func TestDiscoverRepositoriesOrgRepos(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("", []string{"testorg"}, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Orgs: []string{"testorg"}}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -91,8 +99,7 @@ func TestDiscoverRepositoriesUserAndOrg(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", []string{"testorg"}, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser", Orgs: []string{"testorg"}}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -124,8 +131,7 @@ func TestDiscoverRepositoriesPagination(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", nil, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser"}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -145,8 +151,7 @@ func TestDiscoverRepositoriesEmptyResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", nil, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser"}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -163,8 +168,7 @@ func TestDiscoverRepositoriesAPIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", nil, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser"}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error from DiscoverRepositories (error is logged, not returned), got %v", err)
@@ -180,8 +184,7 @@ func TestDiscoverRepositoriesNoUserOrOrg(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("", nil, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -200,8 +203,7 @@ func TestDiscoverRepositoriesTokenSent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("testuser", nil, "ghp_test123", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Username: "testuser", Token: "ghp_test123"}, server.URL, server.Client())
 	_, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -212,7 +214,7 @@ func TestDiscoverRepositoriesTokenSent(t *testing.T) {
 }
 
 func TestProviderName(t *testing.T) {
-	provider := NewGitHubProvider("testuser", nil, "")
+	provider := NewGitHubProvider(&types.GitHubConfig{Username: "testuser"})
 	if provider.Name() != "github" {
 		t.Errorf("expected name 'github', got %s", provider.Name())
 	}
@@ -227,8 +229,7 @@ func TestDiscoverRepositoriesOrgWithWhitespace(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("", []string{"  myorg  "}, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Orgs: []string{"  myorg  "}}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -252,8 +253,7 @@ func TestDiscoverRepositoriesMultipleOrgs(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewGitHubProviderWithClient("", []string{"org1", "org2", "org3"}, "", server.Client())
-	provider.baseURL = server.URL
+	provider := newTestProvider(&types.GitHubConfig{Orgs: []string{"org1", "org2", "org3"}}, server.URL, server.Client())
 	repos, err := provider.DiscoverRepositories(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

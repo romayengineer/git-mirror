@@ -30,15 +30,33 @@ func (l *envLoader) Load() (*types.Config, error) {
 		return nil, fmt.Errorf("failed to load .env file: %w", err)
 	}
 
-	cfg := &types.Config{}
-
-	accountIDs := os.Getenv("AWS_ACCOUNT_IDS")
-	if accountIDs != "" {
-		cfg.AccountIDs = strings.Split(accountIDs, ",")
-		for i, id := range cfg.AccountIDs {
-			cfg.AccountIDs[i] = strings.TrimSpace(id)
-		}
+	cfg := &types.Config{
+		ConcurrentClones: 5,
+		LogLevel:         "info",
+		GitPath:          "git",
+		GitPathFormat:    "linux",
 	}
+
+	if clones, err := strconv.Atoi(os.Getenv("CONCURRENT_CLONES")); err == nil && clones > 0 {
+		cfg.ConcurrentClones = clones
+	}
+
+	if logCmds, err := strconv.ParseBool(os.Getenv("LOG_COMMANDS")); err == nil {
+		cfg.LogCommands = logCmds
+	}
+
+	if v := os.Getenv("GIT_PATH"); v != "" {
+		cfg.GitPath = v
+	}
+	if v := os.Getenv("GIT_PATH_FORMAT"); v != "" {
+		cfg.GitPathFormat = v
+	}
+
+	mirrorDir := os.Getenv("MIRROR_OUTPUT_DIR")
+	if mirrorDir == "" {
+		return nil, fmt.Errorf("MIRROR_OUTPUT_DIR is required")
+	}
+	cfg.MirrorOutputDir = mirrorDir
 
 	sshKeyPath := os.Getenv("SSH_KEY_PATH")
 	if sshKeyPath != "" {
@@ -52,77 +70,68 @@ func (l *envLoader) Load() (*types.Config, error) {
 		cfg.SSHKeyPath = expandedPath
 	}
 
-	mirrorDir := os.Getenv("MIRROR_OUTPUT_DIR")
-	if mirrorDir == "" {
-		return nil, fmt.Errorf("MIRROR_OUTPUT_DIR is required")
-	}
-	cfg.MirrorOutputDir = mirrorDir
+	cfg.GitHub = parseGitHubConfig()
 
-	awsRegions := os.Getenv("AWS_REGIONS")
-	if awsRegions != "" {
-		cfg.AWSRegions = strings.Split(awsRegions, ",")
-		for i, region := range cfg.AWSRegions {
-			cfg.AWSRegions[i] = strings.TrimSpace(region)
+	ccCfg, err := parseCodeCommitConfig()
+	if err != nil {
+		return nil, err
+	}
+	cfg.CodeCommit = ccCfg
+
+	if cfg.CodeCommit == nil && cfg.GitHub == nil {
+		return nil, fmt.Errorf("at least one provider must be configured: set AWS_ACCOUNT_IDS, GITHUB_USERNAME, or GITHUB_ORGS")
+	}
+
+	return cfg, nil
+}
+
+func parseGitHubConfig() *types.GitHubConfig {
+	username := os.Getenv("GITHUB_USERNAME")
+	orgsStr := os.Getenv("GITHUB_ORGS")
+	if username == "" && orgsStr == "" {
+		return nil
+	}
+	cfg := &types.GitHubConfig{
+		Username: username,
+		Token:    os.Getenv("GITHUB_TOKEN"),
+	}
+	if orgsStr != "" {
+		cfg.Orgs = strings.Split(orgsStr, ",")
+		for i, org := range cfg.Orgs {
+			cfg.Orgs[i] = strings.TrimSpace(org)
 		}
 	}
+	return cfg
+}
 
-	cfg.AWSCredentialsProfile = os.Getenv("AWS_CREDENTIALS_PROFILE")
-	if cfg.AWSCredentialsProfile == "" {
-		cfg.AWSCredentialsProfile = "default"
+func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
+	accountIDs := os.Getenv("AWS_ACCOUNT_IDS")
+	if accountIDs == "" {
+		return nil, nil
 	}
-
-	concurrentClonesStr := os.Getenv("CONCURRENT_CLONES")
-	cfg.ConcurrentClones = 5
-	if concurrentClonesStr != "" {
-		if clones, err := strconv.Atoi(concurrentClonesStr); err == nil && clones > 0 {
-			cfg.ConcurrentClones = clones
+	cfg := &types.CodeCommitConfig{
+		CredentialsProfile: "default",
+		DefaultRegion:      defaultRegion,
+	}
+	cfg.AccountIDs = strings.Split(accountIDs, ",")
+	for i, id := range cfg.AccountIDs {
+		cfg.AccountIDs[i] = strings.TrimSpace(id)
+	}
+	if v := os.Getenv("AWS_REGIONS"); v != "" {
+		cfg.Regions = strings.Split(v, ",")
+		for i, r := range cfg.Regions {
+			cfg.Regions[i] = strings.TrimSpace(r)
 		}
 	}
-
-	cfg.LogLevel = os.Getenv("LOG_LEVEL")
-	if cfg.LogLevel == "" {
-		cfg.LogLevel = "info"
+	if v := os.Getenv("AWS_DEFAULT_REGION"); v != "" {
+		cfg.DefaultRegion = v
 	}
-
-	cfg.AWSDefaultRegion = os.Getenv("AWS_DEFAULT_REGION")
-	if cfg.AWSDefaultRegion == "" {
-		cfg.AWSDefaultRegion = defaultRegion
+	if v := os.Getenv("AWS_CREDENTIALS_PROFILE"); v != "" {
+		cfg.CredentialsProfile = v
 	}
-
 	cfg.AccountProfiles = parseAccountProfiles(os.Getenv("AWS_ACCOUNT_PROFILES"))
-
-	cfg.GitPath = os.Getenv("GIT_PATH")
-	if cfg.GitPath == "" {
-		cfg.GitPath = "git"
-	}
-
-	logCommandsStr := os.Getenv("LOG_COMMANDS")
-	cfg.LogCommands = false
-	if logCommandsStr != "" {
-		if logCmds, err := strconv.ParseBool(logCommandsStr); err == nil {
-			cfg.LogCommands = logCmds
-		}
-	}
-
-	// GitPathFormat controls path conversion for Windows Git from WSL.
-	// Set to "windows" to use Windows paths (e.g., C:\path) with wgit or other Windows Git.
-	cfg.GitPathFormat = os.Getenv("GIT_PATH_FORMAT")
-	if cfg.GitPathFormat == "" {
-		cfg.GitPathFormat = "linux"
-	}
-
-	githubOrgs := os.Getenv("GITHUB_ORGS")
-	if githubOrgs != "" {
-		cfg.GitHubOrgs = strings.Split(githubOrgs, ",")
-		for i, org := range cfg.GitHubOrgs {
-			cfg.GitHubOrgs[i] = strings.TrimSpace(org)
-		}
-	}
-	cfg.GitHubUsername = os.Getenv("GITHUB_USERNAME")
-	cfg.GitHubToken = os.Getenv("GITHUB_TOKEN")
-
-	if len(cfg.AccountIDs) == 0 && len(cfg.GitHubOrgs) == 0 && cfg.GitHubUsername == "" {
-		return nil, fmt.Errorf("at least one provider must be configured: set AWS_ACCOUNT_IDS, GITHUB_ORGS, or both")
+	if logCmds, err := strconv.ParseBool(os.Getenv("LOG_COMMANDS")); err == nil {
+		cfg.LogCommands = logCmds
 	}
 
 	return cfg, nil

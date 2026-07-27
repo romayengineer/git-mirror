@@ -41,24 +41,30 @@ type MirrorStats struct {
 }
 
 type Config struct {
+	MirrorOutputDir  string
+	ConcurrentClones int
+	SSHKeyPath       string
+	LogLevel         string
+	GitPath          string
+	LogCommands      bool
+	GitPathFormat    string
+	GitHub           *GitHubConfig
+	CodeCommit       *CodeCommitConfig
+}
+
+type GitHubConfig struct {
+	Username string
+	Orgs     []string
+	Token    string
+}
+
+type CodeCommitConfig struct {
 	AccountIDs            []string
-	AWSRegions            []string
-	AWSDefaultRegion      string
-	SSHKeyPath            string
-	MirrorOutputDir       string
-	AWSCredentialsProfile string
-	AccountProfiles       map[string]string // Maps account ID to AWS profile
-	ConcurrentClones      int
-	LogLevel              string
-	GitPath               string
+	Regions               []string
+	DefaultRegion         string
+	CredentialsProfile    string
+	AccountProfiles       map[string]string
 	LogCommands           bool
-	// GitPathFormat controls path conversion for git commands.
-	// "linux": Use WSL paths (e.g., /mnt/c/path) - works with WSL git
-	// "windows": Convert to Windows paths (e.g., C:\path) - required for Windows Git from WSL
-	GitPathFormat string
-	GitHubOrgs  []string
-	GitHubUsername string
-	GitHubToken    string
 }
 
 type AccountInfo struct {

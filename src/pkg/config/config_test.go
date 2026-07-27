@@ -25,12 +25,12 @@ func TestEnvLoaderLoadSuccess(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if len(cfg.AccountIDs) != 2 {
-		t.Errorf("expected 2 account IDs, got %d", len(cfg.AccountIDs))
+	if len(cfg.CodeCommit.AccountIDs) != 2 {
+		t.Errorf("expected 2 account IDs, got %d", len(cfg.CodeCommit.AccountIDs))
 	}
 
-	if cfg.AccountIDs[0] != "123456789012" {
-		t.Errorf("expected first account ID to be 123456789012, got %s", cfg.AccountIDs[0])
+	if cfg.CodeCommit.AccountIDs[0] != "123456789012" {
+		t.Errorf("expected first account ID to be 123456789012, got %s", cfg.CodeCommit.AccountIDs[0])
 	}
 
 	if cfg.ConcurrentClones != 10 {
@@ -42,13 +42,10 @@ func TestEnvLoaderLoadSuccess(t *testing.T) {
 	}
 }
 
-func TestEnvLoaderMissingRequiredVariable(t *testing.T) {
-	os.Setenv("SSH_KEY_PATH", os.TempDir())
+func TestEnvLoaderMissingAllProviders(t *testing.T) {
 	os.Setenv("MIRROR_OUTPUT_DIR", "./mirror")
 
 	defer func() {
-		os.Unsetenv("AWS_ACCOUNT_IDS")
-		os.Unsetenv("SSH_KEY_PATH")
 		os.Unsetenv("MIRROR_OUTPUT_DIR")
 	}()
 
@@ -56,6 +53,6 @@ func TestEnvLoaderMissingRequiredVariable(t *testing.T) {
 	_, err := loader.Load()
 
 	if err == nil {
-		t.Fatal("expected error for missing AWS_ACCOUNT_IDS")
+		t.Fatal("expected error when no providers configured")
 	}
 }

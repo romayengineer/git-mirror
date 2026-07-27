@@ -9,41 +9,11 @@ import (
 )
 
 type CodeCommitProvider struct {
-	accountIDs         []string
-	regions            []string
-	discoverer         aws.RepositoryDiscoverer
-	credentialsProfile string
-	accountProfiles    map[string]string
-	defaultRegion      string
-	logCommands        bool
+	cfg *types.CodeCommitConfig
 }
 
-func NewCodeCommitProvider(
-	accountIDs []string,
-	regions []string,
-	credentialsProfile string,
-	accountProfiles map[string]string,
-	defaultRegion string,
-) *CodeCommitProvider {
-	return NewCodeCommitProviderWithLogging(accountIDs, regions, credentialsProfile, accountProfiles, defaultRegion, false)
-}
-
-func NewCodeCommitProviderWithLogging(
-	accountIDs []string,
-	regions []string,
-	credentialsProfile string,
-	accountProfiles map[string]string,
-	defaultRegion string,
-	logCommands bool,
-) *CodeCommitProvider {
-	return &CodeCommitProvider{
-		accountIDs:         accountIDs,
-		regions:            regions,
-		credentialsProfile: credentialsProfile,
-		accountProfiles:    accountProfiles,
-		defaultRegion:      defaultRegion,
-		logCommands:        logCommands,
-	}
+func NewCodeCommitProvider(cfg *types.CodeCommitConfig) *CodeCommitProvider {
+	return &CodeCommitProvider{cfg: cfg}
 }
 
 func (p *CodeCommitProvider) Name() string {
@@ -53,17 +23,17 @@ func (p *CodeCommitProvider) Name() string {
 func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types.Repository, error) {
 	var allRepositories []*types.Repository
 
-	for _, accountID := range p.accountIDs {
+	for _, accountID := range p.cfg.AccountIDs {
 		profile := p.getProfileForAccount(accountID)
 
-		accountClient, err := aws.NewAccountClientWithLogging(profile, p.defaultRegion, p.logCommands)
+		accountClient, err := aws.NewAccountClientWithLogging(profile, p.cfg.DefaultRegion, p.cfg.LogCommands)
 		if err != nil {
 			fmt.Printf("✗ Error creating AWS client for account %s with profile %s: %v\n", accountID, profile, err)
 			continue
 		}
 
 		discoverer := aws.NewRepositoryDiscoverer(accountClient)
-		repos, err := discoverer.DiscoverRepositories(ctx, accountID, p.regions)
+		repos, err := discoverer.DiscoverRepositories(ctx, accountID, p.cfg.Regions)
 		if err != nil {
 			fmt.Printf("✗ Error discovering repositories for account %s: %v\n", accountID, err)
 			continue
@@ -79,8 +49,8 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 }
 
 func (p *CodeCommitProvider) getProfileForAccount(accountID string) string {
-	if profile, exists := p.accountProfiles[accountID]; exists {
+	if profile, exists := p.cfg.AccountProfiles[accountID]; exists {
 		return profile
 	}
-	return p.credentialsProfile
+	return p.cfg.CredentialsProfile
 }

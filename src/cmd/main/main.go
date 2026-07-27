@@ -38,38 +38,23 @@ func run() error {
 
 	var providersSlice []providers.Provider
 
-	if len(cfg.AccountIDs) > 0 {
+	if cfg.CodeCommit != nil {
 		if err := aws.CheckAWSCLIAvailable(); err != nil {
 			return fmt.Errorf("AWS CLI is required but not available: %w", err)
 		}
 
-		if len(cfg.AccountProfiles) > 0 {
-			for _, profile := range cfg.AccountProfiles {
-				if profile != "" {
-					os.Setenv("AWS_PROFILE", profile)
-					break
-				}
+		for _, profile := range cfg.CodeCommit.AccountProfiles {
+			if profile != "" {
+				os.Setenv("AWS_PROFILE", profile)
+				break
 			}
 		}
 
-		codecommitProvider := codecommitprovider.NewCodeCommitProviderWithLogging(
-			cfg.AccountIDs,
-			cfg.AWSRegions,
-			cfg.AWSCredentialsProfile,
-			cfg.AccountProfiles,
-			cfg.AWSDefaultRegion,
-			cfg.LogCommands,
-		)
-		providersSlice = append(providersSlice, codecommitProvider)
+		providersSlice = append(providersSlice, codecommitprovider.NewCodeCommitProvider(cfg.CodeCommit))
 	}
 
-	if cfg.GitHubUsername != "" || len(cfg.GitHubOrgs) > 0 {
-		githubProvider := githubprovider.NewGitHubProvider(
-			cfg.GitHubUsername,
-			cfg.GitHubOrgs,
-			cfg.GitHubToken,
-		)
-		providersSlice = append(providersSlice, githubProvider)
+	if cfg.GitHub != nil {
+		providersSlice = append(providersSlice, githubprovider.NewGitHubProvider(cfg.GitHub))
 	}
 
 	orchestrator := mirror.NewOrchestrator(cloner, cfg.SSHKeyPath, providersSlice)
@@ -82,23 +67,25 @@ func run() error {
 	if cfg.GitPathFormat == "windows" {
 		fmt.Println("Git path format: WINDOWS (WSL paths will be converted to Windows format)")
 	}
-	if len(cfg.AccountIDs) > 0 {
-		fmt.Printf("Accounts: %v\n", cfg.AccountIDs)
-		fmt.Printf("AWS Default Region: %s\n", cfg.AWSDefaultRegion)
-		if len(cfg.AWSRegions) > 0 {
-			fmt.Printf("Regions: %v\n", cfg.AWSRegions)
+	if cfg.CodeCommit != nil {
+		fmt.Printf("Accounts: %v\n", cfg.CodeCommit.AccountIDs)
+		fmt.Printf("AWS Default Region: %s\n", cfg.CodeCommit.DefaultRegion)
+		if len(cfg.CodeCommit.Regions) > 0 {
+			fmt.Printf("Regions: %v\n", cfg.CodeCommit.Regions)
 		} else {
 			fmt.Println("Regions: All available regions will be discovered")
 		}
-		if len(cfg.AccountProfiles) > 0 {
-			fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
+		if len(cfg.CodeCommit.AccountProfiles) > 0 {
+			fmt.Printf("Account Profiles: %v\n", cfg.CodeCommit.AccountProfiles)
 		}
 	}
-	if cfg.GitHubUsername != "" {
-		fmt.Printf("GitHub User: %s\n", cfg.GitHubUsername)
-	}
-	if len(cfg.GitHubOrgs) > 0 {
-		fmt.Printf("GitHub Orgs: %v\n", cfg.GitHubOrgs)
+	if cfg.GitHub != nil {
+		if cfg.GitHub.Username != "" {
+			fmt.Printf("GitHub User: %s\n", cfg.GitHub.Username)
+		}
+		if len(cfg.GitHub.Orgs) > 0 {
+			fmt.Printf("GitHub Orgs: %v\n", cfg.GitHub.Orgs)
+		}
 	}
 	fmt.Printf("Output directory: %s\n", cfg.MirrorOutputDir)
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)
