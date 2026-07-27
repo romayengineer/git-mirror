@@ -63,8 +63,9 @@ func run() error {
 		providersSlice = append(providersSlice, codecommitProvider)
 	}
 
-	if len(cfg.GitHubOrgs) > 0 {
+	if cfg.GitHubUsername != "" || len(cfg.GitHubOrgs) > 0 {
 		githubProvider := githubprovider.NewGitHubProvider(
+			cfg.GitHubUsername,
 			cfg.GitHubOrgs,
 			cfg.GitHubToken,
 		)
@@ -92,6 +93,9 @@ func run() error {
 		if len(cfg.AccountProfiles) > 0 {
 			fmt.Printf("Account Profiles: %v\n", cfg.AccountProfiles)
 		}
+	}
+	if cfg.GitHubUsername != "" {
+		fmt.Printf("GitHub User: %s\n", cfg.GitHubUsername)
 	}
 	if len(cfg.GitHubOrgs) > 0 {
 		fmt.Printf("GitHub Orgs: %v\n", cfg.GitHubOrgs)

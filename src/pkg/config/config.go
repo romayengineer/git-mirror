@@ -118,9 +118,10 @@ func (l *envLoader) Load() (*types.Config, error) {
 			cfg.GitHubOrgs[i] = strings.TrimSpace(org)
 		}
 	}
+	cfg.GitHubUsername = os.Getenv("GITHUB_USERNAME")
 	cfg.GitHubToken = os.Getenv("GITHUB_TOKEN")
 
-	if len(cfg.AccountIDs) == 0 && len(cfg.GitHubOrgs) == 0 {
+	if len(cfg.AccountIDs) == 0 && len(cfg.GitHubOrgs) == 0 && cfg.GitHubUsername == "" {
 		return nil, fmt.Errorf("at least one provider must be configured: set AWS_ACCOUNT_IDS, GITHUB_ORGS, or both")
 	}
 

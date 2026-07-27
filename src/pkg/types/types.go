@@ -56,10 +56,9 @@ type Config struct {
 	// "linux": Use WSL paths (e.g., /mnt/c/path) - works with WSL git
 	// "windows": Convert to Windows paths (e.g., C:\path) - required for Windows Git from WSL
 	GitPathFormat string
-	// GitHubOrgs is a list of GitHub organizations to mirror.
-	// If set, the GitHub provider is activated automatically.
 	GitHubOrgs  []string
-	GitHubToken string
+	GitHubUsername string
+	GitHubToken    string
 }
 
 type AccountInfo struct {
