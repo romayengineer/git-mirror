@@ -24,31 +24,31 @@ func (p *CodeCommitProvider) Name() string {
 func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types.Repository, error) {
 	var allRepositories []*types.Repository
 
-	for _, accountID := range p.cfg.AccountIDs {
-		profile := p.getProfileForAccount(accountID)
+	for _, account := range p.cfg.Accounts {
+		profile := account.Profile
+		if profile == "" {
+			profile = p.cfg.CredentialsProfile
+		}
 
 		accountClient, err := aws.NewAccountClientWithLogging(profile, p.cfg.DefaultRegion, p.cfg.LogCommands)
 		if err != nil {
-			fmt.Printf("✗ Error creating AWS client for account %s with profile %s: %v\n", accountID, profile, err)
+			fmt.Printf("✗ Error creating AWS client for account %s with profile %s: %v\n", account.ID, profile, err)
 			continue
 		}
 
 		discoverer := aws.NewRepositoryDiscoverer(accountClient)
-		repos, err := discoverer.DiscoverRepositories(ctx, accountID, p.cfg.Regions)
+		repos, err := discoverer.DiscoverRepositories(ctx, account.ID, p.cfg.Regions)
 		if err != nil {
-			fmt.Printf("✗ Error discovering repositories for account %s: %v\n", accountID, err)
+			fmt.Printf("✗ Error discovering repositories for account %s: %v\n", account.ID, err)
 			continue
 		}
 
-		sshKeyID := p.cfg.SSHKeyIDs[accountID]
-		sshKeyFile := p.cfg.SSHKeyFiles[accountID]
-
 		for _, repo := range repos {
-			if sshKeyID != "" {
-				repo.SSHCloneURL = injectSSHUser(repo.SSHCloneURL, sshKeyID)
+			if account.SSHKeyID != "" {
+				repo.SSHCloneURL = injectSSHUser(repo.SSHCloneURL, account.SSHKeyID)
 			}
-			if sshKeyFile != "" {
-				repo.SSHKeyPath = sshKeyFile
+			if account.SSHKeyFile != "" {
+				repo.SSHKeyPath = account.SSHKeyFile
 			}
 			repo.Provider = p.Name()
 			allRepositories = append(allRepositories, repo)
@@ -56,13 +56,6 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 	}
 
 	return allRepositories, nil
-}
-
-func (p *CodeCommitProvider) getProfileForAccount(accountID string) string {
-	if profile, exists := p.cfg.AccountProfiles[accountID]; exists {
-		return profile
-	}
-	return p.cfg.CredentialsProfile
 }
 
 func injectSSHUser(url, user string) string {

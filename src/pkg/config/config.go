@@ -119,10 +119,35 @@ func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
 		CredentialsProfile: "default",
 		DefaultRegion:      defaultRegion,
 	}
-	cfg.AccountIDs = strings.Split(accountIDs, ",")
-	for i, id := range cfg.AccountIDs {
-		cfg.AccountIDs[i] = strings.TrimSpace(id)
+	ids := strings.Split(accountIDs, ",")
+	profiles := parseKeyValuePairs(os.Getenv("AWS_ACCOUNT_PROFILES"))
+	sshKeyIDs := parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_IDS"))
+	sshKeyFiles := parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_FILES"))
+
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		account := types.CodeCommitAccount{ID: id}
+		if p, ok := profiles[id]; ok {
+			account.Profile = p
+		}
+		if k, ok := sshKeyIDs[id]; ok {
+			account.SSHKeyID = k
+		}
+		f, fileSet := sshKeyFiles[id]
+		if fileSet {
+			expandedPath, err := expandPath(f)
+			if err == nil {
+				account.SSHKeyFile = expandedPath
+			} else {
+				account.SSHKeyFile = f
+			}
+		}
+		cfg.Accounts = append(cfg.Accounts, account)
 	}
+
 	if v := os.Getenv("AWS_REGIONS"); v != "" {
 		cfg.Regions = strings.Split(v, ",")
 		for i, r := range cfg.Regions {
@@ -135,50 +160,11 @@ func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
 	if v := os.Getenv("AWS_CREDENTIALS_PROFILE"); v != "" {
 		cfg.CredentialsProfile = v
 	}
-	cfg.AccountProfiles = parseAccountProfiles(os.Getenv("AWS_ACCOUNT_PROFILES"))
 	if logCmds, err := strconv.ParseBool(os.Getenv("LOG_COMMANDS")); err == nil {
 		cfg.LogCommands = logCmds
 	}
 
-	cfg.SSHKeyIDs = parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_IDS"))
-
-	if keyFilesStr := os.Getenv("CODECOMMIT_SSH_KEY_FILES"); keyFilesStr != "" {
-		pairs := strings.Split(keyFilesStr, ",")
-		keyFiles := make(map[string]string)
-		for _, pair := range pairs {
-			parts := strings.Split(strings.TrimSpace(pair), ":")
-			if len(parts) == 2 {
-				accountID := strings.TrimSpace(parts[0])
-				keyPath := strings.TrimSpace(parts[1])
-				expandedPath, err := expandPath(keyPath)
-				if err == nil {
-					keyFiles[accountID] = expandedPath
-				}
-			}
-		}
-		cfg.SSHKeyFiles = keyFiles
-	}
-
 	return cfg, nil
-}
-
-func parseAccountProfiles(profilesStr string) map[string]string {
-	profiles := make(map[string]string)
-	if profilesStr == "" {
-		return profiles
-	}
-
-	pairs := strings.Split(profilesStr, ",")
-	for _, pair := range pairs {
-		parts := strings.Split(strings.TrimSpace(pair), ":")
-		if len(parts) == 2 {
-			accountID := strings.TrimSpace(parts[0])
-			profileName := strings.TrimSpace(parts[1])
-			profiles[accountID] = profileName
-		}
-	}
-
-	return profiles
 }
 
 func parseKeyValuePairs(input string) map[string]string {

@@ -38,15 +38,29 @@ The tool embeds the SSH key ID directly into the clone URL and uses `GIT_SSH_COM
 - No `~/.ssh/config` changes needed — both CodeCommit accounts and GitHub work simultaneously
 
 ### Configuration Example
-```env
-# Global (fallback)
-SSH_KEY_PATH=~/.ssh/id_rsa
 
-# CodeCommit multi-account
+**Using config.yaml (recommended):**
+```yaml
+ssh:
+  default_key_path: ~/.ssh/id_rsa
+
+codecommit:
+  accounts:
+    - id: "123456789012"
+      ssh_key_id: APKAX4ENFON4GCH7RIJY
+    - id: "210987654321"
+      ssh_key_id: APKA4YBIPDVQB6DUKUSZ
+
+github:
+  username: my-username
+  ssh_key_path: ~/.ssh/id_github_valtirallc
+```
+
+**Using .env (legacy):**
+```env
+SSH_KEY_PATH=~/.ssh/id_rsa
 AWS_ACCOUNT_IDS=123456789012,210987654321
 CODECOMMIT_SSH_KEY_IDS=123456789012:APKAX4ENFON4GCH7RIJY,210987654321:APKA4YBIPDVQB6DUKUSZ
-
-# GitHub
 GITHUB_USERNAME=my-username
 GITHUB_SSH_KEY_PATH=~/.ssh/id_github_valtirallc
 ```
@@ -55,7 +69,7 @@ You can then comment out or remove the `Host git-codecommit.*.amazonaws.com` and
 
 ### Status
 **Implemented:** 2026-07-27  
-**Files Modified:** `src/pkg/types/types.go`, `src/pkg/config/config.go`, `src/internal/providers/codecommit/provider.go`, `src/internal/providers/github/provider.go`, `src/internal/git/executor.go`, `src/internal/git/cloner.go`, `src/internal/mirror/orchestrator.go`
+**Files Modified:** `src/pkg/types/types.go`, `src/pkg/config/config.go`, `src/pkg/config/yaml_loader.go`, `src/internal/providers/codecommit/provider.go`, `src/internal/providers/github/provider.go`, `src/internal/git/executor.go`, `src/internal/git/cloner.go`, `src/internal/mirror/orchestrator.go`, `src/cmd/main/main.go`
 
 ---
 

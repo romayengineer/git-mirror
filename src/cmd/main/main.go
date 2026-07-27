@@ -24,9 +24,15 @@ func main() {
 }
 
 func run() error {
-	envPath := findEnvFile()
+	var loader config.Loader
 
-	loader := config.NewEnvLoader(envPath)
+	if configPath := findConfigFile(); configPath != "" {
+		loader = config.NewYAMLLoader(configPath)
+	} else {
+		envPath := findEnvFile()
+		loader = config.NewEnvLoader(envPath)
+	}
+
 	cfg, err := loader.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
@@ -43,9 +49,9 @@ func run() error {
 			return fmt.Errorf("AWS CLI is required but not available: %w", err)
 		}
 
-		for _, profile := range cfg.CodeCommit.AccountProfiles {
-			if profile != "" {
-				os.Setenv("AWS_PROFILE", profile)
+		for _, account := range cfg.CodeCommit.Accounts {
+			if account.Profile != "" {
+				os.Setenv("AWS_PROFILE", account.Profile)
 				break
 			}
 		}
@@ -68,15 +74,32 @@ func run() error {
 		fmt.Println("Git path format: WINDOWS (WSL paths will be converted to Windows format)")
 	}
 	if cfg.CodeCommit != nil {
-		fmt.Printf("Accounts: %v\n", cfg.CodeCommit.AccountIDs)
+		accountIDs := make([]string, len(cfg.CodeCommit.Accounts))
+		for i, a := range cfg.CodeCommit.Accounts {
+			accountIDs[i] = a.ID
+		}
+		fmt.Printf("Accounts: %v\n", accountIDs)
 		fmt.Printf("AWS Default Region: %s\n", cfg.CodeCommit.DefaultRegion)
 		if len(cfg.CodeCommit.Regions) > 0 {
 			fmt.Printf("Regions: %v\n", cfg.CodeCommit.Regions)
 		} else {
 			fmt.Println("Regions: All available regions will be discovered")
 		}
-		if len(cfg.CodeCommit.AccountProfiles) > 0 {
-			fmt.Printf("Account Profiles: %v\n", cfg.CodeCommit.AccountProfiles)
+		hasProfiles := false
+		for _, a := range cfg.CodeCommit.Accounts {
+			if a.Profile != "" {
+				hasProfiles = true
+				break
+			}
+		}
+		if hasProfiles {
+			profileMap := make(map[string]string)
+			for _, a := range cfg.CodeCommit.Accounts {
+				if a.Profile != "" {
+					profileMap[a.ID] = a.Profile
+				}
+			}
+			fmt.Printf("Account Profiles: %v\n", profileMap)
 		}
 	}
 	if cfg.GitHub != nil {
@@ -121,6 +144,23 @@ func run() error {
 	}
 
 	return nil
+}
+
+func findConfigFile() string {
+	homeDir, _ := os.UserHomeDir()
+	candidates := []string{
+		filepath.Join(homeDir, ".config", "git-mirror", "config.yaml"),
+		"config.yaml",
+		filepath.Join("..", "config.yaml"),
+	}
+
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	return ""
 }
 
 func findEnvFile() string {

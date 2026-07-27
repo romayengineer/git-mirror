@@ -53,21 +53,25 @@ type Config struct {
 }
 
 type GitHubConfig struct {
-	Username   string
-	Orgs       []string
-	Token      string
-	SSHKeyPath string
+	Username   string   `yaml:"username"`
+	Orgs       []string `yaml:"orgs"`
+	Token      string   `yaml:"token"`
+	SSHKeyPath string   `yaml:"ssh_key_path"`
+}
+
+type CodeCommitAccount struct {
+	ID         string `yaml:"id"`
+	Profile    string `yaml:"profile"`
+	SSHKeyID   string `yaml:"ssh_key_id"`
+	SSHKeyFile string `yaml:"ssh_key_file"`
 }
 
 type CodeCommitConfig struct {
-	AccountIDs            []string
-	Regions               []string
-	DefaultRegion         string
-	CredentialsProfile    string
-	AccountProfiles       map[string]string
-	LogCommands           bool
-	SSHKeyIDs             map[string]string
-	SSHKeyFiles           map[string]string
+	Accounts           []CodeCommitAccount
+	Regions            []string
+	DefaultRegion      string
+	CredentialsProfile string
+	LogCommands        bool
 }
 
 type AccountInfo struct {

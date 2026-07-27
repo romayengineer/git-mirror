@@ -154,108 +154,123 @@ make help
 make install
 # Creates binary at ~/.local/bin/git-mirror
 # Creates config directory ~/.config/git-mirror/
-# Copies .env.example → ~/.config/git-mirror/.env (if not exists)
+# Copies config.example.yaml → ~/.config/git-mirror/config.yaml (if not exists)
 ```
 
 ## Configuration
 
 The tool searches for configuration files in this order:
-1. `~/.config/git-mirror/.env` (recommended - user-wide config)
-2. `.env` (repository root - project-specific config)
-3. `../.env` (parent directory - fallback)
+1. `~/.config/git-mirror/config.yaml` (recommended - user-wide config)
+2. `config.yaml` (repository root - project-specific config)
+3. `../config.yaml` (parent directory - fallback)
+4. Falls back to `.env` search (legacy) if no `config.yaml` found
 
-This search order allows both user-wide and project-specific configurations.
+The YAML format is the primary configuration method. Legacy `.env` support is maintained for backward compatibility.
 
 ### Setup
 
 **First-time setup (recommended):**
 ```bash
 make install
-# Then edit: nano ~/.config/git-mirror/.env
+# Then edit: nano ~/.config/git-mirror/config.yaml
 ```
 
 **Manual setup:**
 ```bash
-cp .env.example ~/.config/git-mirror/.env
-nano ~/.config/git-mirror/.env
+cp config.example.yaml ~/.config/git-mirror/config.yaml
+nano ~/.config/git-mirror/config.yaml
 ```
 
-### Required Variables
+### YAML Configuration Reference
 
-```env
-MIRROR_OUTPUT_DIR=./mirror                   # Local directory for cloned repositories
+```yaml
+# REQUIRED: Local directory for cloned repositories
+output_dir: ./mirror
+
+# OPTIONAL: Number of concurrent clone operations (default: 5)
+# concurrent_clones: 5
+
+# OPTIONAL: Logging level: debug, info, warn, error (default: info)
+# log_level: info
+
+# OPTIONAL: Log all executed commands (default: false)
+# log_commands: false
+
+# OPTIONAL: Git executable settings
+# git:
+#   path: git                               # Path to git (default: "git")
+#   path_format: linux                      # "linux" or "windows" (default: "linux")
+
+# OPTIONAL: Global SSH key (fallback for all providers)
+# ssh:
+#   default_key_path: ~/.ssh/id_rsa
+
+# --- AWS CodeCommit ---
+# Activated when accounts are listed
+# codecommit:
+#   default_region: us-east-1
+#   regions:
+#     - us-east-1
+#     - us-west-2
+#   accounts:
+#     - id: "123456789012"
+#       profile: production                  # AWS credentials profile
+#       ssh_key_id: APKAX4ENFON4GCH7RIJY     # CodeCommit SSH key ID
+#       ssh_key_file: ~/.ssh/id_rsa          # Per-account SSH key path
+
+# --- GitHub ---
+# Activated when username and/or orgs are set
+# github:
+#   username: my-username
+#   orgs:
+#     - my-org
+#   token: ghp_xxxxxxxxxxxx
+#   ssh_key_path: ~/.ssh/id_github
 ```
 
-### Optional Variables
-
-```env
-AWS_ACCOUNT_IDS=123456789012,210987654321    # Comma-separated list of AWS account IDs
-SSH_KEY_PATH=~/.ssh/id_rsa                   # Path to SSH private key for CodeCommit
-AWS_DEFAULT_REGION=us-east-1                 # AWS region for initial API calls (default: us-east-1)
-AWS_REGIONS=us-east-1,us-west-2,eu-west-1    # Comma-separated list of regions to mirror
-                                             # If not set, discovers all regions
-AWS_CREDENTIALS_PROFILE=default              # AWS credentials profile (default: "default")
-AWS_ACCOUNT_PROFILES=ID:profile,ID:profile   # Map account IDs to AWS credential profiles
-GITHUB_USERNAME=my-username                  # GitHub username (mirrors personal repos)
-GITHUB_ORGS=org1,org2                        # GitHub organizations to mirror
-GITHUB_TOKEN=ghp_xxxx                        # GitHub personal access token
-CONCURRENT_CLONES=5                          # Number of concurrent clone operations (default: 5)
-LOG_LEVEL=info                               # Logging level: debug, info, warn, error (default: info)
-GIT_PATH=git                                 # Path to git executable (default: "git")
-GIT_PATH_FORMAT=linux                        # Path format for git: "linux" or "windows" (default: "linux")
-LOG_COMMANDS=false                           # Log all executed commands (default: false)
-```
-
-**Provider Activation**: Providers are activated by setting their respective config variables:
-- **CodeCommit**: Set `AWS_ACCOUNT_IDS` to activate
-- **GitHub**: Set `GITHUB_USERNAME` and/or `GITHUB_ORGS` to activate
+**Provider Activation**:
+- **CodeCommit**: Activated when `accounts` has at least one entry
+- **GitHub**: Activated when `username` or `orgs` is set
 - At least one provider must be configured
 
-**Command Logging**: Set `LOG_COMMANDS=true` to see every command being executed. Useful for debugging or understanding what the tool is doing:
+**Command Logging**: Set `log_commands: true` to see every command being executed:
 ```
 Executing: git clone git@codecommit:test-repo.git /path/to/mirror
 Executing: aws codecommit list-repositories --region us-east-1 --output json
 ```
 
-**Git Path Format**: Controls how paths are passed to git commands. Choose based on which git you're using:
-- `linux` (default): Passes paths as `/mnt/c/path` 
-  - Use with: WSL Git, standard Linux git
-  - Correct for WSL environment paths
-  
-- `windows`: Converts paths to `C:\path` format
-  - Use with: Windows Git binaries (e.g., `wgit`) run from WSL
-  - Required because Windows Git doesn't understand `/mnt/` paths
-  - Automatically converts `/mnt/c/mirror/repo` → `C:\mirror\repo`
+**Git Path Format**: Controls how paths are passed to git commands:
+- `linux` (default): Passes paths as `/mnt/c/path` (for WSL Git, standard Linux git)
+- `windows`: Converts paths to `C:\path` format (for Windows Git from WSL)
 
 **Example for Windows Git:**
-```env
-# Using Windows Git (wgit) from WSL
-GIT_PATH=wgit
-GIT_PATH_FORMAT=windows
+```yaml
+git:
+  path: wgit
+  path_format: windows
 ```
 
 **Example for WSL Git (default):**
-```env
-# Using WSL Git or standard Linux git
-GIT_PATH=git
-GIT_PATH_FORMAT=linux
-# or just omit GIT_PATH_FORMAT, defaults to linux
+```yaml
+git:
+  path: git
+  path_format: linux
 ```
 
-Providers are auto-activated by their config variables:
-- **CodeCommit**: Activated when `AWS_ACCOUNT_IDS` is set
-- **GitHub**: Activated when `GITHUB_USERNAME` or `GITHUB_ORGS` is set
-- At least one provider must be configured, or the tool errors on startup
-
-**Regional Discovery**: If `AWS_REGIONS` is not specified, the tool will:
+**Regional Discovery**: If `regions` is not specified, the tool will:
 - Fetch all available AWS regions via the EC2 API
 - Attempt to list CodeCommit repositories in each region
 - Skip regions where CodeCommit is not available
 - Clone from all regions that have repositories
 
-**Per-Account Profiles**: Use `AWS_ACCOUNT_PROFILES` to specify different AWS credential profiles for different accounts (useful for cross-account access or STS AssumeRole):
-```env
-AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
+**Per-Account Profiles**: Use per-account `profile` field instead of global profile:
+```yaml
+codecommit:
+  accounts:
+    - id: "123456789012"
+      profile: prod-account
+    - id: "210987654321"
+      profile: dev-account
 ```
 
 ## Per-Provider Config Architecture
@@ -282,12 +297,18 @@ type GitHubConfig struct {
 }
 
 type CodeCommitConfig struct {
-    AccountIDs         []string
+    Accounts           []CodeCommitAccount
     Regions            []string
     DefaultRegion      string
     CredentialsProfile string
-    AccountProfiles    map[string]string
     LogCommands        bool
+}
+
+type CodeCommitAccount struct {
+    ID         string
+    Profile    string
+    SSHKeyID   string
+    SSHKeyFile string
 }
 ```
 
@@ -312,10 +333,10 @@ This replaces the previous pattern of multiple constructor variants (e.g., `NewX
   - `make build`: Compiles binary to `./build/git-mirror`
   - `make install`: Installs binary to `~/.local/bin/`, creates `~/.config/git-mirror/`
   - `make test`: Runs all unit tests
-- `.env.example`: Template configuration file (all variables commented and documented)
+- `config.example.yaml`: Template YAML configuration file (all settings commented and documented)
 - `src/go.mod` / `src/go.sum`: Dependency management
-- `src/cmd/main/main.go`: Entry point (searches for .env file and starts orchestration)
-  - Config file search order: `~/.config/git-mirror/.env` → `.env` → `../.env`
+- `src/cmd/main/main.go`: Entry point (searches for config.yaml file and starts orchestration)
+  - Config file search order: `~/.config/git-mirror/config.yaml` → `config.yaml` → `../config.yaml` → fallback `.env`
 - `src/internal/aws/`: AWS SDK interactions and region enumeration (uses CLI wrapper for discovery)
 - `src/internal/git/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
 - `src/internal/mirror/`: Orchestration of discovery + cloning workflow with `mpb` progress bars

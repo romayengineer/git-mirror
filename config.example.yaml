@@ -1,0 +1,80 @@
+# git-mirror Configuration
+# Supports AWS CodeCommit and GitHub providers.
+# At least one provider section must be present.
+
+# REQUIRED: Local directory where cloned repositories will be stored
+# Output structure: provider/account_or_org/[region/]repository_name
+# Example: ./mirror or /home/user/git-mirror
+output_dir: ./mirror
+
+# OPTIONAL: Number of concurrent clone operations (default: 5)
+# concurrent_clones: 5
+
+# OPTIONAL: Logging level (debug, info, warn, error) (default: info)
+# log_level: info
+
+# OPTIONAL: Log all executed commands (default: false)
+# log_commands: false
+
+# OPTIONAL: Git executable settings
+# git:
+  # Path to git executable (default: "git")
+  # path: git
+
+  # Path format: "linux" or "windows" (default: linux)
+  # Set to "windows" if using Windows Git (e.g., wgit) from WSL
+  # path_format: linux
+
+# OPTIONAL: Default SSH key (fallback when per-provider keys are not set)
+# Supports ~ expansion for home directory.
+# ssh:
+  # default_key_path: ~/.ssh/id_rsa
+
+# --- AWS CodeCommit ---
+# Activated when at least one account is listed under `accounts:`.
+# codecommit:
+  # OPTIONAL: AWS default region (default: us-east-1)
+  # default_region: us-east-1
+
+  # OPTIONAL: List of AWS regions to mirror from
+  # If not specified, all available regions will be discovered
+  # regions:
+    # - us-east-1
+    # - us-west-2
+
+  # REQUIRED: List of AWS accounts to mirror from
+  # accounts:
+      # REQUIRED: AWS Account ID
+    # - id: "123456789012"
+
+      # OPTIONAL: AWS credentials profile name
+      # profile: production
+
+      # OPTIONAL: SSH key ID for CodeCommit authentication
+      # Required when mirroring from multiple CodeCommit accounts.
+      # This is the SSH User value from ~/.ssh/config for git-codecommit.*.amazonaws.com
+      # ssh_key_id: APKAX4ENFON4GCH7RIJY
+
+      # OPTIONAL: SSH key file for this specific account (falls back to ssh.default_key_path)
+      # Supports ~ expansion for home directory.
+      # ssh_key_file: ~/.ssh/id_rsa
+
+# --- GitHub ---
+# Activated when username and/or orgs are set.
+# github:
+  # OPTIONAL: GitHub username to mirror personal repositories
+  # username: my-username
+
+  # OPTIONAL: List of GitHub organizations to mirror
+  # orgs:
+    # - my-org
+
+  # OPTIONAL: GitHub personal access token
+  # Without a token, rate limit is 60 requests/hour (only public repos).
+  # With a token, rate limit is 5000 requests/hour (includes private repos).
+  # Create at: https://github.com/settings/tokens
+  # token: ghp_xxxxxxxxxxxx
+
+  # OPTIONAL: Path to SSH private key for GitHub authentication
+  # Supports ~ expansion for home directory.
+  # ssh_key_path: ~/.ssh/id_github

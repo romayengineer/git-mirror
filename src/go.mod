@@ -31,4 +31,5 @@ require (
 	github.com/vbauerster/cupwriter v0.0.4 // indirect
 	github.com/vbauerster/mpb/v8 v8.14.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
