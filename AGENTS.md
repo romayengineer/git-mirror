@@ -4,26 +4,29 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## Project Overview
 
-**git-mirror** is a multi-provider Git repository mirror tool written in Go. It discovers and clones repositories from multiple Git providers (currently AWS CodeCommit, with GitHub and GitLab support planned) to a local filesystem, maintaining organized mirrors by provider, account/organization, and region.
+**git-mirror** is a multi-provider Git repository mirror tool written in Go. It discovers and clones repositories from multiple Git providers (currently AWS CodeCommit and GitHub) to a local filesystem, maintaining organized mirrors by provider, account/organization, and region.
 
 The tool uses a plugin-style provider architecture with an interface-based design that makes adding new providers straightforward without modifying core orchestration logic.
 
 ## Features
 
-- **Multi-Provider Support**: Mirror from AWS CodeCommit, GitHub, GitLab, and other Git providers
-- **Multi-Account/Organization Support**: Mirror from multiple AWS accounts or GitHub orgs in a single run
+- **Multi-Provider Support**: Mirror from AWS CodeCommit and GitHub
+- **Multi-Account/Organization Support**: Mirror from multiple AWS accounts or GitHub users/orgs in a single run
 - **Multi-Region Support** (CodeCommit): Auto-discover all AWS regions or specify a subset
+- **GitHub User + Org Repos**: Mirror personal repos via `GITHUB_USERNAME` and/or org repos via `GITHUB_ORGS`
 - **Parallel Cloning**: Concurrent clone operations for performance
-- **Smart Directory Organization**: Organizes clones as `provider/account-or-org/region/repository_name`
+- **Smart Directory Organization**: Organizes clones as `provider/account-or-org/[region/]repository_name`
+- **Per-Provider Config Blocks**: Each provider has its own config struct — providers are activated by setting their config
 - **.env Configuration**: Simple environment variable configuration without CLI flags
 - **Error Resilience**: Gracefully handle failures - continue cloning if regions or repositories fail
 - **Automatic Updates**: Detect existing repositories and pull latest changes
-- **Provider-Specific Features**: Each provider implementation handles its own authentication and API patterns
-- **Account/Org Aliases**: Uses readable aliases instead of just IDs (AWS account names, GitHub org names, etc.)
-- **Flexible Authentication**: Support for SSH keys, tokens, and other auth methods per provider
-- **Flexible Concurrency**: Configurable concurrent clone operations with per-provider rate limits
+- **Provider-Specific Authentication**: Each provider handles its own auth (AWS CLI profiles, GitHub tokens, etc.)
+- **Account/Org Aliases**: Uses readable aliases instead of just IDs (AWS account names, GitHub usernames/org names)
+- **Flexible Concurrency**: Configurable concurrent clone operations
 - **Git CLI Integration**: Uses git CLI directly with a thin wrapper (no git library dependencies)
-- **Dependency Injection**: Interface-based design for easy testing, mocking, and extension
+- **GitHub HTTP API**: GitHub provider uses direct HTTP calls via `net/http` — no external CLI dependency
+- **WSL Path Conversion**: Optional Windows path format for using Windows Git from WSL
+- **Composable Architecture**: Single-constructor providers with per-provider config types
 
 ## High-Level Architecture
 
@@ -42,7 +45,7 @@ The codebase is structured around these concerns:
 - **Git Operations** (`src/internal/git/`): Unified clone/pull logic used by all providers
 - **Orchestration** (`src/internal/mirror/`): Coordinates providers and cloning
 - **Configuration** (`src/pkg/config/`): Environment-based configuration
-- **Type Definitions** (`src/pkg/types/`): Shared data structures
+- **Type Definitions** (`src/pkg/types/`): Shared data structures including per-provider config types
 
 ## Repository Structure
 
@@ -64,8 +67,11 @@ git-mirror/
 │   ├── internal/
 │   │   ├── providers/                       # Git provider implementations
 │   │   │   ├── provider.go                  # Provider interface
-│   │   │   └── codecommit/
-│   │   │       └── provider.go              # CodeCommit provider
+│   │   │   ├── codecommit/
+│   │   │   │   └── provider.go              # CodeCommit provider
+│   │   │   └── github/
+│   │   │       ├── provider.go              # GitHub provider (direct HTTP API)
+│   │   │       └── provider_test.go         # Tests with httptest server
 │   │   ├── aws/
 │   │   │   ├── client.go                    # AWS SDK wrapper
 │   │   │   ├── cli_executor.go              # AWS CLI wrapper
@@ -90,7 +96,7 @@ git-mirror/
 │       └── types/
 │           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
 └── build/                                   # Build output (git ignored)
-    └── git-mirror                    # Compiled binary
+    └── git-mirror                            # Compiled binary
 ```
 
 ## Development Commands
@@ -176,19 +182,22 @@ nano ~/.config/git-mirror/.env
 ### Required Variables
 
 ```env
-AWS_ACCOUNT_IDS=123456789012,210987654321    # Comma-separated list of AWS account IDs
-SSH_KEY_PATH=~/.ssh/id_rsa                   # Path to SSH private key for CodeCommit
 MIRROR_OUTPUT_DIR=./mirror                   # Local directory for cloned repositories
 ```
 
 ### Optional Variables
 
 ```env
+AWS_ACCOUNT_IDS=123456789012,210987654321    # Comma-separated list of AWS account IDs
+SSH_KEY_PATH=~/.ssh/id_rsa                   # Path to SSH private key for CodeCommit
 AWS_DEFAULT_REGION=us-east-1                 # AWS region for initial API calls (default: us-east-1)
 AWS_REGIONS=us-east-1,us-west-2,eu-west-1    # Comma-separated list of regions to mirror
                                              # If not set, discovers all regions
 AWS_CREDENTIALS_PROFILE=default              # AWS credentials profile (default: "default")
 AWS_ACCOUNT_PROFILES=ID:profile,ID:profile   # Map account IDs to AWS credential profiles
+GITHUB_USERNAME=my-username                  # GitHub username (mirrors personal repos)
+GITHUB_ORGS=org1,org2                        # GitHub organizations to mirror
+GITHUB_TOKEN=ghp_xxxx                        # GitHub personal access token
 CONCURRENT_CLONES=5                          # Number of concurrent clone operations (default: 5)
 LOG_LEVEL=info                               # Logging level: debug, info, warn, error (default: info)
 GIT_PATH=git                                 # Path to git executable (default: "git")
@@ -196,7 +205,12 @@ GIT_PATH_FORMAT=linux                        # Path format for git: "linux" or "
 LOG_COMMANDS=false                           # Log all executed commands (default: false)
 ```
 
-**Command Logging**: Set `LOG_COMMANDS=true` to see every git and AWS CLI command being executed. Useful for debugging or understanding what the tool is doing:
+**Provider Activation**: Providers are activated by setting their respective config variables:
+- **CodeCommit**: Set `AWS_ACCOUNT_IDS` to activate
+- **GitHub**: Set `GITHUB_USERNAME` and/or `GITHUB_ORGS` to activate
+- At least one provider must be configured
+
+**Command Logging**: Set `LOG_COMMANDS=true` to see every command being executed. Useful for debugging or understanding what the tool is doing:
 ```
 Executing: git clone git@codecommit:test-repo.git /path/to/mirror
 Executing: aws codecommit list-repositories --region us-east-1 --output json
@@ -227,7 +241,10 @@ GIT_PATH_FORMAT=linux
 # or just omit GIT_PATH_FORMAT, defaults to linux
 ```
 
-The tool validates all required variables are present on startup.
+Providers are auto-activated by their config variables:
+- **CodeCommit**: Activated when `AWS_ACCOUNT_IDS` is set
+- **GitHub**: Activated when `GITHUB_USERNAME` or `GITHUB_ORGS` is set
+- At least one provider must be configured, or the tool errors on startup
 
 **Regional Discovery**: If `AWS_REGIONS` is not specified, the tool will:
 - Fetch all available AWS regions via the EC2 API
@@ -239,6 +256,54 @@ The tool validates all required variables are present on startup.
 ```env
 AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
 ```
+
+## Per-Provider Config Architecture
+
+The `Config` struct in `src/pkg/types/types.go` uses per-provider config blocks instead of a flat list of fields:
+
+```go
+type Config struct {
+    MirrorOutputDir  string
+    ConcurrentClones int
+    SSHKeyPath       string
+    LogLevel         string
+    GitPath          string
+    LogCommands      bool
+    GitPathFormat    string
+    GitHub           *GitHubConfig       // nil when not configured
+    CodeCommit       *CodeCommitConfig   // nil when not configured
+}
+
+type GitHubConfig struct {
+    Username string
+    Orgs     []string
+    Token    string
+}
+
+type CodeCommitConfig struct {
+    AccountIDs         []string
+    Regions            []string
+    DefaultRegion      string
+    CredentialsProfile string
+    AccountProfiles    map[string]string
+    LogCommands        bool
+}
+```
+
+Providers are activated by checking if their config pointer is non-nil:
+```go
+if cfg.GitHub != nil {
+    providers = append(providers, github.NewGitHubProvider(cfg.GitHub))
+}
+```
+
+Each provider has a **single constructor** that takes its config struct:
+```go
+func NewGitHubProvider(cfg *types.GitHubConfig) *GitHubProvider
+func NewCodeCommitProvider(cfg *types.CodeCommitConfig) *CodeCommitProvider
+```
+
+This replaces the previous pattern of multiple constructor variants (e.g., `NewXWithLogging`, `NewXWithClient`).
 
 ## Key Files & Packages
 
@@ -256,14 +321,14 @@ AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
 - `src/pkg/config/`: .env parsing, validation, and configuration struct
 - `src/pkg/exec/`: Command execution abstraction (Commander interface, logging support)
 - `src/pkg/path/`: Path conversion utilities (WSL ↔ Windows path conversion)
-- `src/pkg/types/`: Shared data structures (Repository, Region, CloneResult, etc.)
+- `src/pkg/types/`: Shared data structures (Repository, CloneResult, etc.) including per-provider config types (GitHubConfig, CodeCommitConfig)
 
 ## Git Command Implementation
 
 The tool uses **git CLI commands directly** via Go's `os/exec` package rather than a pure-Go git library. A thin wrapper in `src/internal/git/` encapsulates common git operations:
 
 - `Clone(url, path)` — executes `git clone`
-- `Pull(repoPath)` — executes `git pull` in an existing repository
+- `Pull(repoPath)` — executes `git fetch --all` in an existing repository
 - Other git operations as needed
 
 **Path Format Support:** All paths passed to git are optionally converted from WSL to Windows format (if `GIT_PATH_FORMAT=windows`), enabling use of Windows Git binaries from WSL.
@@ -438,7 +503,9 @@ func (m *mockAccountClient) GetAccountAlias(...) (string, error) { return "test-
 
 **git-mirror** is architected from the ground up with a plugin-style provider system that makes it straightforward to add support for new Git providers without modifying core orchestration logic.
 
-### Currently Implemented: AWS CodeCommit
+### Currently Implemented Providers
+
+**AWS CodeCommit:**
 
 **Package Structure:**
 ```
@@ -449,65 +516,43 @@ src/internal/aws/
 └── discoverer_test.go  # Tests with mocked client
 ```
 
+**GitHub:**
+
+Package Structure:
+```
+src/internal/providers/github/
+├── provider.go         # GitHub provider (GitHub REST API via net/http)
+└── provider_test.go    # Tests with httptest server
+```
+
 ### Adding New Providers
 
 **Required Components:**
 
-1. **Provider Discovery Interface** (implements `RepositoryDiscoverer`)
+1. **Per-Provider Config Type** — Add a config struct to `src/pkg/types/types.go`
    ```go
-   type RepositoryDiscoverer interface {
-     DiscoverRepositories(ctx context.Context, config ProviderConfig) ([]*types.Repository, error)
+   type GitLabConfig struct {
+     URL    string
+     Token  string
+     Groups []string
    }
    ```
-   - Discovers all repositories from the provider
-   - Returns normalized `types.Repository` objects
-   - Handles provider-specific authentication and pagination
 
-2. **Provider Configuration**
-   - Add to `.env.example` and `config.go`
-   - Example: `GITHUB_TOKEN`, `GITHUB_ORGS`, `GITLAB_URL`, etc.
+2. **Provider Implementation** — Create `src/internal/providers/<name>/provider.go` implementing `providers.Provider`
+   ```go
+   func NewXProvider(cfg *types.XConfig) *XProvider
+   func (p *XProvider) Name() string
+   func (p *XProvider) DiscoverRepositories(ctx context.Context) ([]*types.Repository, error)
+   ```
 
-3. **Update Orchestrator**
-   - Modify `mirror/orchestrator.go` to handle multiple providers
-   - Each provider can have different concurrency/rate limits
-   - Results aggregated into single output directory structure
+3. **Configuration Parsing** — Add a `parseXConfig()` function in `src/pkg/config/config.go`
 
-### Example: Adding GitHub Support
-
-```go
-// src/internal/github/discoverer.go
-type RepositoryDiscoverer struct {
-  client *github.Client
-  owner  string
-}
-
-func (d *RepositoryDiscoverer) DiscoverRepositories(ctx context.Context, config *types.Config) ([]*types.Repository, error) {
-  // Fetch repos from GitHub API
-  // Return as types.Repository objects
-}
-```
-
-**Configuration:**
-```env
-GIT_PROVIDERS=codecommit,github    # Which providers to use
-GITHUB_TOKEN=ghp_xxxx              # GitHub personal access token
-GITHUB_ORGS=org1,org2              # Organizations to mirror
-```
-
-**Orchestrator Changes:**
-```go
-// Mirror multiple providers in parallel
-providers := []Discoverer{
-  aws.NewDiscoverer(awsConfig),
-  github.NewDiscoverer(githubConfig),
-  gitlab.NewDiscoverer(gitlabConfig),
-}
-
-for _, provider := range providers {
-  repos := provider.DiscoverRepositories(ctx, config)
-  // Clone repos...
-}
-```
+4. **Wire in main.go** — Add provider to the providers slice when its config is non-nil:
+   ```go
+   if cfg.GitLab != nil {
+     providers = append(providers, gitlab.NewGitLabProvider(cfg.GitLab))
+   }
+   ```
 
 ### Design Principles for New Providers
 
@@ -556,11 +601,13 @@ for _, provider := range providers {
 - Use AWS credential chain (env vars, credentials file, IAM role)
 - Each account needs its own credential context
 
-**GitHub (future):**
-- Respect GitHub API rate limits (60 req/hr unauthenticated, 5000 req/hr authenticated)
-- Use pagination for organization repos
-- Handle GitHub organizations and user accounts differently
-- Personal access tokens support OAuth scopes
+**GitHub:**
+- Uses direct HTTP calls to the GitHub REST API (`net/http`) — no external CLI dependency
+- Lists repos via `GET /users/{username}/repos` (personal) and `GET /orgs/{org}/repos` (org repos)
+- Respect GitHub API rate limits (60 req/hr unauthenticated, 5000 req/hr authenticated with token)
+- Token sent as `Authorization: Bearer` header when configured via `GITHUB_TOKEN`
+- Handles pagination automatically (100 repos per page)
+- Supports both personal user repos (`GITHUB_USERNAME`) and organization repos (`GITHUB_ORGS`)
 
 **GitLab (future):**
 - Support both self-hosted and cloud GitLab instances
@@ -584,7 +631,7 @@ mirror_output/
 │   └── account-alias-2/
 │       ├── us-east-1/
 │       │   └── repo-name-4/
-├── github/                              # GitHub provider (when implemented)
+├── github/                              # GitHub provider
 │   ├── org-name-1/
 │   │   ├── repo-name-1/
 │   │   └── repo-name-2/
@@ -605,8 +652,8 @@ mirror_output/
 
 ### Existing Repository Handling
 When a repository already exists locally:
-1. **Verify the URL**: Check that the git origin URL matches the expected source URL from AWS CodeCommit
-2. **If URL matches**: Pull latest changes (`git pull`) to update the repository
+1. **Verify the URL**: Check that the git origin URL matches the expected source URL
+2. **If URL matches**: Pull latest changes (`git fetch --all`) to update the repository
 3. **If URL doesn't match**: Fail with a clear error message (prevents accidental overwrite of mismatched repos)
 4. **Error Recovery**: On URL mismatch, log which repository has the mismatch and continue with other repositories
 
@@ -614,6 +661,7 @@ When a repository already exists locally:
 
 - **Unit Tests**: Mock all external dependencies (AWS, git) using interfaces
 - **AWS Discovery Tests**: Mock `AccountClient` and `RepositoryDiscoverer` interfaces
+- **GitHub Provider Tests**: Use `httptest.NewServer` to mock the GitHub REST API
 - **Git Operation Tests**: Mock `git.Executor` interface for clone/pull/verify operations
 - **Configuration Tests**: Unit test .env parsing and validation
 - **Error Scenario Tests**: Use mocks to simulate AWS/git failures, timeouts, etc.
