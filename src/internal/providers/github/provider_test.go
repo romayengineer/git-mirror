@@ -242,6 +242,61 @@ func TestDiscoverRepositoriesOrgWithWhitespace(t *testing.T) {
 	}
 }
 
+func TestDiscoverRepositoriesWithSSHKeyPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]ghRepo{
+			{Name: "repo1", SSHUrl: "git@github.com:testuser/repo1.git"},
+		})
+	}))
+	defer server.Close()
+
+	provider := newTestProvider(&types.GitHubConfig{
+		Username:   "testuser",
+		SSHKeyPath: "~/.ssh/id_github_test",
+	}, server.URL, server.Client())
+
+	repos, err := provider.DiscoverRepositories(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(repos) != 1 {
+		t.Fatalf("expected 1 repo, got %d", len(repos))
+	}
+
+	if repos[0].SSHKeyPath != "~/.ssh/id_github_test" {
+		t.Errorf("expected SSHKeyPath '~/.ssh/id_github_test', got '%s'", repos[0].SSHKeyPath)
+	}
+}
+
+func TestDiscoverRepositoriesWithoutSSHKeyPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]ghRepo{
+			{Name: "repo1", SSHUrl: "git@github.com:testuser/repo1.git"},
+		})
+	}))
+	defer server.Close()
+
+	provider := newTestProvider(&types.GitHubConfig{
+		Username: "testuser",
+	}, server.URL, server.Client())
+
+	repos, err := provider.DiscoverRepositories(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(repos) != 1 {
+		t.Fatalf("expected 1 repo, got %d", len(repos))
+	}
+
+	if repos[0].SSHKeyPath != "" {
+		t.Errorf("expected empty SSHKeyPath, got '%s'", repos[0].SSHKeyPath)
+	}
+}
+
 func TestDiscoverRepositoriesMultipleOrgs(t *testing.T) {
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

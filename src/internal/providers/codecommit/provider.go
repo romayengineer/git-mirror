@@ -66,7 +66,7 @@ func (p *CodeCommitProvider) getProfileForAccount(accountID string) string {
 }
 
 func injectSSHUser(url, user string) string {
-	if !strings.HasPrefix(url, "ssh://") {
+	if user == "" || !strings.HasPrefix(url, "ssh://") {
 		return url
 	}
 	return "ssh://" + user + "@" + url[len("ssh://"):]
