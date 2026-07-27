@@ -1,4 +1,4 @@
-module github.com/romayengineer/codecommit-mirror
+module github.com/romayengineer/git-mirror
 
 go 1.21
 

@@ -3,7 +3,7 @@ package providers
 import (
 	"context"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/git-mirror/pkg/types"
 )
 
 type Provider interface {

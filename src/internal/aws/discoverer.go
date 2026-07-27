@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/git-mirror/pkg/types"
 )
 
 type RepositoryDiscoverer interface {

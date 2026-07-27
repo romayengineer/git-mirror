@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/git-mirror/pkg/types"
 )
 
 type Cloner interface {

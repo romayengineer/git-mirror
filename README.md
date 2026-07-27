@@ -31,18 +31,18 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 ```bash
 # Build only
 make build
-# Output: ./build/codecommit-mirror
+# Output: ./build/git-mirror
 
 # Build and install to ~/.local/bin
 make install
 # Copies binary to ~/.local/bin and creates config directory
-# Next: Edit ~/.config/codecommit-mirror/.env with your settings
+# Next: Edit ~/.config/git-mirror/.env with your settings
 ```
 
 ## Configuration
 
 The tool searches for configuration in this order:
-1. `~/.config/codecommit-mirror/.env` (recommended for user-wide config)
+1. `~/.config/git-mirror/.env` (recommended for user-wide config)
 2. `.env` in the current directory
 3. `../.env` in the parent directory
 
@@ -51,12 +51,12 @@ The tool searches for configuration in this order:
 ```bash
 # Option 1: Quick install (recommended)
 make install
-# Creates ~/.config/codecommit-mirror/.env from template
-# Then edit: nano ~/.config/codecommit-mirror/.env
+# Creates ~/.config/git-mirror/.env from template
+# Then edit: nano ~/.config/git-mirror/.env
 
 # Option 2: Manual setup
-cp .env.example ~/.config/codecommit-mirror/.env
-nano ~/.config/codecommit-mirror/.env
+cp .env.example ~/.config/git-mirror/.env
+nano ~/.config/git-mirror/.env
 ```
 
 ### Example Configuration
@@ -95,7 +95,7 @@ make run
 
 Or run the binary directly:
 ```bash
-./build/codecommit-mirror
+./build/git-mirror
 ```
 
 The tool will:

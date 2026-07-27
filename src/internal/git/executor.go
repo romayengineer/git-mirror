@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/exec"
-	"github.com/romayengineer/codecommit-mirror/pkg/path"
+	"github.com/romayengineer/git-mirror/pkg/exec"
+	"github.com/romayengineer/git-mirror/pkg/path"
 )
 
 type Executor interface {

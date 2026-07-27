@@ -90,7 +90,7 @@ git-mirror/
 │       └── types/
 │           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
 └── build/                                   # Build output (git ignored)
-    └── codecommit-mirror                    # Compiled binary
+    └── git-mirror                    # Compiled binary
 ```
 
 ## Development Commands
@@ -100,7 +100,7 @@ All commands are run from the **project root directory** using the Makefile.
 ### Building
 ```bash
 make build
-# Output: ./build/codecommit-mirror
+# Output: ./build/git-mirror
 ```
 
 ### Testing
@@ -127,7 +127,7 @@ make lint              # Full linting (requires golangci-lint)
 ```bash
 make run               # Build and run the tool
 # Or run the binary directly:
-./build/codecommit-mirror
+./build/git-mirror
 ```
 
 ### Cleanup
@@ -145,15 +145,15 @@ make help
 ```bash
 # Build and install to ~/.local/bin
 make install
-# Creates binary at ~/.local/bin/codecommit-mirror
-# Creates config directory ~/.config/codecommit-mirror/
-# Copies .env.example → ~/.config/codecommit-mirror/.env (if not exists)
+# Creates binary at ~/.local/bin/git-mirror
+# Creates config directory ~/.config/git-mirror/
+# Copies .env.example → ~/.config/git-mirror/.env (if not exists)
 ```
 
 ## Configuration
 
 The tool searches for configuration files in this order:
-1. `~/.config/codecommit-mirror/.env` (recommended - user-wide config)
+1. `~/.config/git-mirror/.env` (recommended - user-wide config)
 2. `.env` (repository root - project-specific config)
 3. `../.env` (parent directory - fallback)
 
@@ -164,13 +164,13 @@ This search order allows both user-wide and project-specific configurations.
 **First-time setup (recommended):**
 ```bash
 make install
-# Then edit: nano ~/.config/codecommit-mirror/.env
+# Then edit: nano ~/.config/git-mirror/.env
 ```
 
 **Manual setup:**
 ```bash
-cp .env.example ~/.config/codecommit-mirror/.env
-nano ~/.config/codecommit-mirror/.env
+cp .env.example ~/.config/git-mirror/.env
+nano ~/.config/git-mirror/.env
 ```
 
 ### Required Variables
@@ -243,13 +243,13 @@ AWS_ACCOUNT_PROFILES=123456789012:prod-account,210987654321:dev-account
 ## Key Files & Packages
 
 - `Makefile`: Build, test, and install automation
-  - `make build`: Compiles binary to `./build/codecommit-mirror`
-  - `make install`: Installs binary to `~/.local/bin/`, creates `~/.config/codecommit-mirror/`
+  - `make build`: Compiles binary to `./build/git-mirror`
+  - `make install`: Installs binary to `~/.local/bin/`, creates `~/.config/git-mirror/`
   - `make test`: Runs all unit tests
 - `.env.example`: Template configuration file (all variables commented and documented)
 - `src/go.mod` / `src/go.sum`: Dependency management
 - `src/cmd/main/main.go`: Entry point (searches for .env file and starts orchestration)
-  - Config file search order: `~/.config/codecommit-mirror/.env` → `.env` → `../.env`
+  - Config file search order: `~/.config/git-mirror/.env` → `.env` → `../.env`
 - `src/internal/aws/`: AWS SDK interactions and region enumeration (uses CLI wrapper for discovery)
 - `src/internal/git/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
 - `src/internal/mirror/`: Orchestration of discovery + cloning workflow

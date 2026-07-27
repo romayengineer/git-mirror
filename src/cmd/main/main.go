@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/romayengineer/codecommit-mirror/internal/aws"
-	"github.com/romayengineer/codecommit-mirror/internal/git"
-	"github.com/romayengineer/codecommit-mirror/internal/mirror"
-	"github.com/romayengineer/codecommit-mirror/internal/providers"
-	codecommitprovider "github.com/romayengineer/codecommit-mirror/internal/providers/codecommit"
-	githubprovider "github.com/romayengineer/codecommit-mirror/internal/providers/github"
-	"github.com/romayengineer/codecommit-mirror/pkg/config"
+	"github.com/romayengineer/git-mirror/internal/aws"
+	"github.com/romayengineer/git-mirror/internal/git"
+	"github.com/romayengineer/git-mirror/internal/mirror"
+	"github.com/romayengineer/git-mirror/internal/providers"
+	codecommitprovider "github.com/romayengineer/git-mirror/internal/providers/codecommit"
+	githubprovider "github.com/romayengineer/git-mirror/internal/providers/github"
+	"github.com/romayengineer/git-mirror/pkg/config"
 )
 
 func main() {
@@ -128,8 +128,8 @@ func findEnvFile() string {
 	candidates := []string{
 		".env",
 		filepath.Join("..", ".env"),
-		filepath.Join(homeDir, ".config", "codecommit-mirror", ".env"),
-		filepath.Join(homeDir, ".codecommit-mirror"),
+		filepath.Join(homeDir, ".config", "git-mirror", ".env"),
+		filepath.Join(homeDir, ".git-mirror"),
 	}
 
 	for _, candidate := range candidates {

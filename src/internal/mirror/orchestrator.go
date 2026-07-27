@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/romayengineer/codecommit-mirror/internal/git"
-	"github.com/romayengineer/codecommit-mirror/internal/providers"
-	"github.com/romayengineer/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/git-mirror/internal/git"
+	"github.com/romayengineer/git-mirror/internal/providers"
+	"github.com/romayengineer/git-mirror/pkg/types"
 )
 
 type Orchestrator interface {

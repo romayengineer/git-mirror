@@ -92,7 +92,7 @@ $ aws codecommit list-repositories --region us-east-1 --profile your-profile
 
 **Tool fails with SDK:**
 ```bash
-$ AWS_PROFILE=your-profile ./build/codecommit-mirror
+$ AWS_PROFILE=your-profile ./build/git-mirror
 # ... 
 Warning: could not get account alias: failed to list account aliases: not found, ResolveEndpointV2
 Warning: failed to list repositories in region us-east-1: not found, ResolveEndpointV2

@@ -6,7 +6,7 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  build         - Build the codecommit-mirror binary"
+	@echo "  build         - Build the git-mirror binary"
 	@echo "  test          - Run all unit tests"
 	@echo "  test-verbose  - Run tests with verbose output"
 	@echo "  test-cover    - Run tests with coverage report"
@@ -19,13 +19,13 @@ help:
 	@echo "  deps          - Download and tidy dependencies"
 	@echo "  help          - Show this help message"
 	@echo ""
-	@echo "Build output: ./build/codecommit-mirror"
+	@echo "Build output: ./build/git-mirror"
 	@echo ""
 
 build:
 	@mkdir -p build
-	cd src && go build -o ../build/codecommit-mirror ./cmd/main
-	@echo "✓ Built: ./build/codecommit-mirror"
+	cd src && go build -o ../build/git-mirror ./cmd/main
+	@echo "✓ Built: ./build/git-mirror"
 
 test:
 	cd src && go test ./...
@@ -53,25 +53,25 @@ clean:
 	@echo "✓ Clean complete"
 
 run: build
-	./build/codecommit-mirror
+	./build/git-mirror
 
 install: build
 	@mkdir -p $(HOME)/.local/bin
-	@mkdir -p $(HOME)/.config/codecommit-mirror
-	@cp build/codecommit-mirror $(HOME)/.local/bin/codecommit-mirror
-	@chmod +x $(HOME)/.local/bin/codecommit-mirror
-	@echo "✓ Installed: $(HOME)/.local/bin/codecommit-mirror"
-	@echo "✓ Created config directory: $(HOME)/.config/codecommit-mirror"
-	@if [ ! -f $(HOME)/.config/codecommit-mirror/.env ]; then \
-		cp .env.example $(HOME)/.config/codecommit-mirror/.env; \
-		echo "✓ Created config template: $(HOME)/.config/codecommit-mirror/.env"; \
+	@mkdir -p $(HOME)/.config/git-mirror
+	@cp build/git-mirror $(HOME)/.local/bin/git-mirror
+	@chmod +x $(HOME)/.local/bin/git-mirror
+	@echo "✓ Installed: $(HOME)/.local/bin/git-mirror"
+	@echo "✓ Created config directory: $(HOME)/.config/git-mirror"
+	@if [ ! -f $(HOME)/.config/git-mirror/.env ]; then \
+		cp .env.example $(HOME)/.config/git-mirror/.env; \
+		echo "✓ Created config template: $(HOME)/.config/git-mirror/.env"; \
 	else \
-		echo "ℹ  Config file already exists: $(HOME)/.config/codecommit-mirror/.env (not overwritten)"; \
+		echo "ℹ  Config file already exists: $(HOME)/.config/git-mirror/.env (not overwritten)"; \
 	fi
 	@echo ""
 	@echo "Next steps:"
 	@echo "1. Edit the configuration file with your settings:"
-	@echo "   nano $(HOME)/.config/codecommit-mirror/.env"
+	@echo "   nano $(HOME)/.config/git-mirror/.env"
 	@echo ""
 	@echo "2. Uncomment the REQUIRED variables and fill in your values:"
 	@echo "   - AWS_ACCOUNT_IDS"
@@ -79,10 +79,10 @@ install: build
 	@echo "   - MIRROR_OUTPUT_DIR"
 	@echo ""
 	@echo "3. Run the tool:"
-	@echo "   codecommit-mirror"
+	@echo "   git-mirror"
 	@echo ""
 	@echo "The tool will automatically load config from:"
-	@echo "  - $(HOME)/.config/codecommit-mirror/.env (recommended)"
+	@echo "  - $(HOME)/.config/git-mirror/.env (recommended)"
 	@echo "  - .env in current or parent directory"
 	@echo ""
 	@echo "To use this command globally, ensure $(HOME)/.local/bin is in your PATH:"

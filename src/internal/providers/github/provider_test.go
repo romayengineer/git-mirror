@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/types"
+	"github.com/romayengineer/git-mirror/pkg/types"
 )
 
 func newTestProvider(cfg *types.GitHubConfig, serverURL string, client *http.Client) *GitHubProvider {

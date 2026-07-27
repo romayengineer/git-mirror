@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/romayengineer/codecommit-mirror/pkg/exec"
+	"github.com/romayengineer/git-mirror/pkg/exec"
 )
 
 type CLIExecutor struct {
