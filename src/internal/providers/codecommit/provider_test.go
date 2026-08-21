@@ -4,56 +4,49 @@ import (
 	"testing"
 )
 
-func TestInjectSSHUser(t *testing.T) {
+func TestBuildCodeCommitURL(t *testing.T) {
 	tests := []struct {
 		name     string
-		url      string
-		user     string
+		region   string
+		profile  string
+		repoName string
 		expected string
 	}{
 		{
-			name:     "injects user into ssh URL",
-			url:      "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
-			user:     "APKA4YBIPDVQB6DUKUSZ",
-			expected: "ssh://APKA4YBIPDVQB6DUKUSZ@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			name:     "with profile",
+			region:   "us-east-1",
+			profile:  "my-profile",
+			repoName: "my-repo",
+			expected: "codecommit::us-east-1://my-profile@my-repo",
 		},
 		{
-			name:     "injects user with region in URL",
-			url:      "ssh://git-codecommit.eu-west-1.amazonaws.com/v1/repos/other-repo",
-			user:     "APKAX4ENFON4GCH7RIJY",
-			expected: "ssh://APKAX4ENFON4GCH7RIJY@git-codecommit.eu-west-1.amazonaws.com/v1/repos/other-repo",
+			name:     "with profile different region",
+			region:   "eu-west-1",
+			profile:  "prod",
+			repoName: "other-repo",
+			expected: "codecommit::eu-west-1://prod@other-repo",
 		},
 		{
-			name:     "empty user returns URL unchanged",
-			url:      "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
-			user:     "",
-			expected: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+			name:     "without profile",
+			region:   "us-east-1",
+			profile:  "",
+			repoName: "my-repo",
+			expected: "codecommit::us-east-1://my-repo",
 		},
 		{
-			name:     "non-ssh URL returns unchanged",
-			url:      "git@github.com:org/repo.git",
-			user:     "someuser",
-			expected: "git@github.com:org/repo.git",
-		},
-		{
-			name:     "https URL returns unchanged",
-			url:      "https://github.com/org/repo.git",
-			user:     "someuser",
-			expected: "https://github.com/org/repo.git",
-		},
-		{
-			name:     "empty URL with non-empty user",
-			url:      "",
-			user:     "someuser",
-			expected: "",
+			name:     "without profile us-west-2",
+			region:   "us-west-2",
+			profile:  "",
+			repoName: "test",
+			expected: "codecommit::us-west-2://test",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := injectSSHUser(tt.url, tt.user)
+			result := buildCodeCommitURL(tt.region, tt.profile, tt.repoName)
 			if result != tt.expected {
-				t.Errorf("injectSSHUser(%q, %q) = %q, want %q", tt.url, tt.user, result, tt.expected)
+				t.Errorf("buildCodeCommitURL(%q, %q, %q) = %q, want %q", tt.region, tt.profile, tt.repoName, result, tt.expected)
 			}
 		})
 	}

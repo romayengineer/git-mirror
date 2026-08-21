@@ -40,7 +40,7 @@ func run() error {
 
 	// Initialize git executor with support for Windows paths when using Windows Git from WSL
 	executor := git.NewExecutorWithPathFormat(cfg.GitPath, cfg.LogCommands, cfg.GitPathFormat)
-	cloner := git.NewCloner(executor)
+	cloner := git.NewClonerWithForceReclone(executor, cfg.ForceReclone)
 
 	var providersSlice []providers.Provider
 
@@ -48,12 +48,8 @@ func run() error {
 		if err := aws.CheckAWSCLIAvailable(); err != nil {
 			return fmt.Errorf("AWS CLI is required but not available: %w", err)
 		}
-
-		for _, account := range cfg.CodeCommit.Accounts {
-			if account.Profile != "" {
-				os.Setenv("AWS_PROFILE", account.Profile)
-				break
-			}
+		if err := git.CheckGitRemoteCodeCommitAvailable(cfg.GitPath); err != nil {
+			return err
 		}
 
 		providersSlice = append(providersSlice, codecommitprovider.NewCodeCommitProvider(cfg.CodeCommit))
@@ -114,6 +110,9 @@ func run() error {
 	fmt.Printf("Concurrent clones: %d\n", cfg.ConcurrentClones)
 	if cfg.LogCommands {
 		fmt.Println("Command logging: ENABLED")
+	}
+	if cfg.ForceReclone {
+		fmt.Println("Force re-clone: ENABLED (URL mismatches will be re-cloned)")
 	}
 
 	startTime := time.Now()

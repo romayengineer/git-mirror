@@ -14,11 +14,23 @@ type Cloner interface {
 }
 
 type cloner struct {
-	executor Executor
+	executor     Executor
+	forceReclone bool
 }
 
 func NewCloner(executor Executor) Cloner {
 	return &cloner{executor: executor}
+}
+
+func NewClonerWithForceReclone(executor Executor, forceReclone bool) Cloner {
+	return &cloner{executor: executor, forceReclone: forceReclone}
+}
+
+func getCloneURL(repo *types.Repository) string {
+	if repo.CloneURL != "" {
+		return repo.CloneURL
+	}
+	return repo.SSHCloneURL
 }
 
 func (c *cloner) CloneRepository(repo *types.Repository) *types.CloneResult {
@@ -44,7 +56,8 @@ func (c *cloner) CloneRepository(repo *types.Repository) *types.CloneResult {
 		return c.handleExistingRepository(repo)
 	}
 
-	if err := c.executor.Clone(repo.SSHCloneURL, repo.LocalPath, repo.SSHKeyPath); err != nil {
+	cloneURL := getCloneURL(repo)
+	if err := c.executor.Clone(cloneURL, repo.LocalPath, repo.SSHKeyPath); err != nil {
 		os.RemoveAll(repo.LocalPath)
 		return &types.CloneResult{
 			Repository: repo,
@@ -72,12 +85,46 @@ func (c *cloner) handleExistingRepository(repo *types.Repository) *types.CloneRe
 		}
 	}
 
-	if !urlsMatch(currentURL, repo.SSHCloneURL) {
+	cloneURL := getCloneURL(repo)
+	if !urlsMatch(currentURL, cloneURL) {
+		if c.forceReclone {
+			// Remove mismatched repo and re-clone
+			if err := os.RemoveAll(repo.LocalPath); err != nil {
+				return &types.CloneResult{
+					Repository: repo,
+					Success:    false,
+					Error:      err,
+					Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s) - failed to remove for re-clone: %v", currentURL, cloneURL, err),
+				}
+			}
+			if err := c.ensureDirectoryExists(repo.LocalPath); err != nil {
+				return &types.CloneResult{
+					Repository: repo,
+					Success:    false,
+					Error:      err,
+					Message:    fmt.Sprintf("failed to create directory for re-clone: %v", err),
+				}
+			}
+			if err := c.executor.Clone(cloneURL, repo.LocalPath, repo.SSHKeyPath); err != nil {
+				os.RemoveAll(repo.LocalPath)
+				return &types.CloneResult{
+					Repository: repo,
+					Success:    false,
+					Error:      err,
+					Message:    fmt.Sprintf("failed to re-clone after URL mismatch: %v", err),
+				}
+			}
+			return &types.CloneResult{
+				Repository: repo,
+				Success:    true,
+				Message:    "re-cloned (URL mismatch)",
+			}
+		}
 		return &types.CloneResult{
 			Repository: repo,
 			Success:    false,
-			Error:      fmt.Errorf("URL mismatch: existing=%s, expected=%s", currentURL, repo.SSHCloneURL),
-			Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s)", currentURL, repo.SSHCloneURL),
+			Error:      fmt.Errorf("URL mismatch: existing=%s, expected=%s (hint: remove %s or set force_reclone=true)", currentURL, cloneURL, repo.LocalPath),
+			Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s) - remove %s or set force_reclone: true", currentURL, cloneURL, repo.LocalPath),
 		}
 	}
 

@@ -128,6 +128,7 @@ func (p *GitHubProvider) makeRepo(r ghRepo, alias string) *types.Repository {
 	return &types.Repository{
 		Name:         r.Name,
 		SSHCloneURL:  r.SSHUrl,
+		CloneURL:     r.SSHUrl,
 		HTTPCloneURL: r.URL,
 		AccountAlias: alias,
 		Provider:     p.Name(),

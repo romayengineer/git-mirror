@@ -14,6 +14,7 @@ type yamlConfig struct {
 	ConcurrentClones int               `yaml:"concurrent_clones"`
 	LogLevel         string            `yaml:"log_level"`
 	LogCommands      bool              `yaml:"log_commands"`
+	ForceReclone     bool              `yaml:"force_reclone"`
 	Git              *yamlGitConfig    `yaml:"git"`
 	SSH              *yamlSSHConfig    `yaml:"ssh"`
 	GitHub           *yamlGitHubConfig `yaml:"github"`
@@ -80,6 +81,7 @@ func (l *yamlLoader) Load() (*types.Config, error) {
 		cfg.LogLevel = yc.LogLevel
 	}
 	cfg.LogCommands = yc.LogCommands
+	cfg.ForceReclone = yc.ForceReclone
 
 	if yc.Git != nil {
 		if yc.Git.Path != "" {
@@ -116,12 +118,6 @@ func (l *yamlLoader) Load() (*types.Config, error) {
 		accounts := make([]types.CodeCommitAccount, len(yc.CodeCommit.Accounts))
 		for i, a := range yc.CodeCommit.Accounts {
 			accounts[i] = a
-			if a.SSHKeyFile != "" {
-				expandedPath, err := expandPath(a.SSHKeyFile)
-				if err == nil {
-					accounts[i].SSHKeyFile = expandedPath
-				}
-			}
 		}
 
 		ccCfg := &types.CodeCommitConfig{

@@ -16,6 +16,12 @@ output_dir: ./mirror
 # OPTIONAL: Log all executed commands (default: false)
 # log_commands: false
 
+# OPTIONAL: Force re-clone on URL mismatch (default: false)
+# When false (default), URL mismatches fail with hint to remove dir or set true.
+# When true, mismatched repos are deleted and re-cloned automatically.
+# Useful when migrating from SSH (old) to codecommit:: (new) URLs.
+# force_reclone: false
+
 # OPTIONAL: Git executable settings
 # git:
   # Path to git executable (default: "git")
@@ -25,13 +31,16 @@ output_dir: ./mirror
   # Set to "windows" if using Windows Git (e.g., wgit) from WSL
   # path_format: linux
 
-# OPTIONAL: Default SSH key (fallback when per-provider keys are not set)
+# OPTIONAL: Default SSH key (fallback for GitHub when per-provider keys are not set)
 # Supports ~ expansion for home directory.
+# Note: CodeCommit uses git-remote-codecommit (no SSH keys needed)
 # ssh:
   # default_key_path: ~/.ssh/id_rsa
 
 # --- AWS CodeCommit ---
 # Activated when at least one account is listed under `accounts:`.
+# Uses git-remote-codecommit (pip install git-remote-codecommit) with codecommit:: URLs.
+# Each account uses its AWS profile for IAM authentication - no SSH keys needed.
 # codecommit:
   # OPTIONAL: AWS default region (default: us-east-1)
   # default_region: us-east-1
@@ -47,17 +56,10 @@ output_dir: ./mirror
       # REQUIRED: AWS Account ID
     # - id: "123456789012"
 
-      # OPTIONAL: AWS credentials profile name
+      # OPTIONAL: AWS credentials profile name (used in codecommit::region://profile@repo)
       # profile: production
-
-      # OPTIONAL: SSH key ID for CodeCommit authentication
-      # Required when mirroring from multiple CodeCommit accounts.
-      # This is the SSH User value from ~/.ssh/config for git-codecommit.*.amazonaws.com
-      # ssh_key_id: APKAX4ENFON4GCH7RIJY
-
-      # OPTIONAL: SSH key file for this specific account (falls back to ssh.default_key_path)
-      # Supports ~ expansion for home directory.
-      # ssh_key_file: ~/.ssh/id_rsa
+    # - id: "210987654321"
+      # profile: development
 
 # --- GitHub ---
 # Activated when username and/or orgs are set.

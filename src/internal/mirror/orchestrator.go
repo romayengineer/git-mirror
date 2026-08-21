@@ -137,7 +137,8 @@ func (o *orchestrator) processProvider(ctx context.Context, config *types.Config
 			defer func() { <-semaphore }()
 
 			r.LocalPath = buildLocalPath(config.MirrorOutputDir, r.Provider, r.AccountAlias, r.Region, r.Name)
-			if r.SSHKeyPath == "" {
+			// Only apply global SSH key for non-CodeCommit providers (CodeCommit uses git-remote-codecommit, no SSH)
+			if r.Provider != "codecommit" && r.SSHKeyPath == "" {
 				r.SSHKeyPath = o.sshKeyPath
 			}
 

@@ -3,7 +3,6 @@ package codecommit
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/romayengineer/git-mirror/internal/aws"
 	"github.com/romayengineer/git-mirror/pkg/types"
@@ -44,12 +43,8 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 		}
 
 		for _, repo := range repos {
-			if account.SSHKeyID != "" {
-				repo.SSHCloneURL = injectSSHUser(repo.SSHCloneURL, account.SSHKeyID)
-			}
-			if account.SSHKeyFile != "" {
-				repo.SSHKeyPath = account.SSHKeyFile
-			}
+			// Build codecommit:: URL with profile embedded (git-remote-codecommit).
+			repo.CloneURL = buildCodeCommitURL(repo.Region, profile, repo.Name)
 			repo.Provider = p.Name()
 			allRepositories = append(allRepositories, repo)
 		}
@@ -58,9 +53,12 @@ func (p *CodeCommitProvider) DiscoverRepositories(ctx context.Context) ([]*types
 	return allRepositories, nil
 }
 
-func injectSSHUser(url, user string) string {
-	if user == "" || !strings.HasPrefix(url, "ssh://") {
-		return url
+// buildCodeCommitURL constructs a git-remote-codecommit URL.
+// Format: codecommit::region://profile@repoName  (with profile) or codecommit::region://repoName
+// See: https://github.com/awslabs/git-remote-codecommit
+func buildCodeCommitURL(region, profile, repoName string) string {
+	if profile != "" {
+		return fmt.Sprintf("codecommit::%s://%s@%s", region, profile, repoName)
 	}
-	return "ssh://" + user + "@" + url[len("ssh://"):]
+	return fmt.Sprintf("codecommit::%s://%s", region, repoName)
 }

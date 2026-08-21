@@ -28,7 +28,7 @@ Falls back to global `SSH_KEY_PATH` if not set per account.
 
 **Step 3:** Configure GitHub SSH key separately:
 ```env
-GITHUB_SSH_KEY_PATH=~/.ssh/id_github_valtirallc
+GITHUB_SSH_KEY_PATH=~/.ssh/id_github
 ```
 
 ### How It Works
@@ -53,7 +53,7 @@ codecommit:
 
 github:
   username: my-username
-  ssh_key_path: ~/.ssh/id_github_valtirallc
+  ssh_key_path: ~/.ssh/id_github
 ```
 
 **Using .env (legacy):**
@@ -62,7 +62,7 @@ SSH_KEY_PATH=~/.ssh/id_rsa
 AWS_ACCOUNT_IDS=123456789012,210987654321
 CODECOMMIT_SSH_KEY_IDS=123456789012:APKAX4ENFON4GCH7RIJY,210987654321:APKA4YBIPDVQB6DUKUSZ
 GITHUB_USERNAME=my-username
-GITHUB_SSH_KEY_PATH=~/.ssh/id_github_valtirallc
+GITHUB_SSH_KEY_PATH=~/.ssh/id_github
 ```
 
 You can then comment out or remove the `Host git-codecommit.*.amazonaws.com` and `Host github.com` blocks from `~/.ssh/config`.

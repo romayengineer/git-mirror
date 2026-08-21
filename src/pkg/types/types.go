@@ -5,6 +5,7 @@ type Repository struct {
 	RepositoryURL    string
 	HTTPCloneURL     string
 	SSHCloneURL      string
+	CloneURL         string // Canonical clone URL (codecommit:: for CodeCommit, SSH for GitHub)
 	ARN              string
 	AccountID        string
 	AccountAlias     string
@@ -48,6 +49,7 @@ type Config struct {
 	GitPath          string
 	LogCommands      bool
 	GitPathFormat    string
+	ForceReclone     bool
 	GitHub           *GitHubConfig
 	CodeCommit       *CodeCommitConfig
 }
@@ -60,10 +62,8 @@ type GitHubConfig struct {
 }
 
 type CodeCommitAccount struct {
-	ID         string `yaml:"id"`
-	Profile    string `yaml:"profile"`
-	SSHKeyID   string `yaml:"ssh_key_id"`
-	SSHKeyFile string `yaml:"ssh_key_file"`
+	ID      string `yaml:"id"`
+	Profile string `yaml:"profile"`
 }
 
 type CodeCommitConfig struct {

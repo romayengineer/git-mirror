@@ -51,6 +51,11 @@ func (l *envLoader) Load() (*types.Config, error) {
 	if v := os.Getenv("GIT_PATH_FORMAT"); v != "" {
 		cfg.GitPathFormat = v
 	}
+	if v := os.Getenv("FORCE_RECLONE"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.ForceReclone = b
+		}
+	}
 
 	mirrorDir := os.Getenv("MIRROR_OUTPUT_DIR")
 	if mirrorDir == "" {
@@ -121,8 +126,6 @@ func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
 	}
 	ids := strings.Split(accountIDs, ",")
 	profiles := parseKeyValuePairs(os.Getenv("AWS_ACCOUNT_PROFILES"))
-	sshKeyIDs := parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_IDS"))
-	sshKeyFiles := parseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_FILES"))
 
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
@@ -132,18 +135,6 @@ func parseCodeCommitConfig() (*types.CodeCommitConfig, error) {
 		account := types.CodeCommitAccount{ID: id}
 		if p, ok := profiles[id]; ok {
 			account.Profile = p
-		}
-		if k, ok := sshKeyIDs[id]; ok {
-			account.SSHKeyID = k
-		}
-		f, fileSet := sshKeyFiles[id]
-		if fileSet {
-			expandedPath, err := expandPath(f)
-			if err == nil {
-				account.SSHKeyFile = expandedPath
-			} else {
-				account.SSHKeyFile = f
-			}
 		}
 		cfg.Accounts = append(cfg.Accounts, account)
 	}

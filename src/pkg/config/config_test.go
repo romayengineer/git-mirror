@@ -42,15 +42,15 @@ func TestEnvLoaderLoadSuccess(t *testing.T) {
 	}
 }
 
-func TestParseCodeCommitSSHKeyIDs(t *testing.T) {
-	os.Setenv("AWS_ACCOUNT_IDS", "111111111111,222222222222")
+func TestEnvLoaderForceReclone(t *testing.T) {
+	os.Setenv("AWS_ACCOUNT_IDS", "111111111111")
 	os.Setenv("MIRROR_OUTPUT_DIR", "./mirror")
-	os.Setenv("CODECOMMIT_SSH_KEY_IDS", "111111111111:AAAAAAA,222222222222:BBBBBBB")
+	os.Setenv("FORCE_RECLONE", "true")
 
 	defer func() {
 		os.Unsetenv("AWS_ACCOUNT_IDS")
 		os.Unsetenv("MIRROR_OUTPUT_DIR")
-		os.Unsetenv("CODECOMMIT_SSH_KEY_IDS")
+		os.Unsetenv("FORCE_RECLONE")
 	}()
 
 	loader := NewEnvLoader("")
@@ -59,24 +59,12 @@ func TestParseCodeCommitSSHKeyIDs(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if cfg.CodeCommit == nil {
-		t.Fatal("expected CodeCommit config to be set")
-	}
-
-	if len(cfg.CodeCommit.Accounts) != 2 {
-		t.Errorf("expected 2 accounts, got %d", len(cfg.CodeCommit.Accounts))
-	}
-
-	if cfg.CodeCommit.Accounts[0].SSHKeyID != "AAAAAAA" {
-		t.Errorf("expected SSH key ID AAAAAAA for first account, got %s", cfg.CodeCommit.Accounts[0].SSHKeyID)
-	}
-
-	if cfg.CodeCommit.Accounts[1].SSHKeyID != "BBBBBBB" {
-		t.Errorf("expected SSH key ID BBBBBBB for second account, got %s", cfg.CodeCommit.Accounts[1].SSHKeyID)
+	if !cfg.ForceReclone {
+		t.Error("expected ForceReclone true")
 	}
 }
 
-func TestParseCodeCommitSSHKeyIDsEmpty(t *testing.T) {
+func TestEnvLoaderForceRecloneDefaultFalse(t *testing.T) {
 	os.Setenv("AWS_ACCOUNT_IDS", "111111111111")
 	os.Setenv("MIRROR_OUTPUT_DIR", "./mirror")
 
@@ -91,52 +79,8 @@ func TestParseCodeCommitSSHKeyIDsEmpty(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if cfg.CodeCommit == nil {
-		t.Fatal("expected CodeCommit config to be set")
-	}
-
-	if len(cfg.CodeCommit.Accounts) != 1 {
-		t.Fatalf("expected 1 account, got %d", len(cfg.CodeCommit.Accounts))
-	}
-
-	if cfg.CodeCommit.Accounts[0].SSHKeyID != "" {
-		t.Errorf("expected empty SSH key ID when env not set, got %s", cfg.CodeCommit.Accounts[0].SSHKeyID)
-	}
-}
-
-func TestParseCodeCommitSSHKeyFiles(t *testing.T) {
-	os.Setenv("AWS_ACCOUNT_IDS", "111111111111,222222222222")
-	os.Setenv("MIRROR_OUTPUT_DIR", "./mirror")
-	os.Setenv("CODECOMMIT_SSH_KEY_FILES", "111111111111:~/.ssh/id_rsa,222222222222:~/.ssh/other_key")
-
-	defer func() {
-		os.Unsetenv("AWS_ACCOUNT_IDS")
-		os.Unsetenv("MIRROR_OUTPUT_DIR")
-		os.Unsetenv("CODECOMMIT_SSH_KEY_FILES")
-	}()
-
-	loader := NewEnvLoader("")
-	cfg, err := loader.Load()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if cfg.CodeCommit == nil {
-		t.Fatal("expected CodeCommit config to be set")
-	}
-
-	if len(cfg.CodeCommit.Accounts) != 2 {
-		t.Fatalf("expected 2 accounts, got %d", len(cfg.CodeCommit.Accounts))
-	}
-
-	expected1 := os.Getenv("HOME") + "/.ssh/id_rsa"
-	if cfg.CodeCommit.Accounts[0].SSHKeyFile != expected1 {
-		t.Errorf("expected SSH key file %s for first account, got %s", expected1, cfg.CodeCommit.Accounts[0].SSHKeyFile)
-	}
-
-	expected2 := os.Getenv("HOME") + "/.ssh/other_key"
-	if cfg.CodeCommit.Accounts[1].SSHKeyFile != expected2 {
-		t.Errorf("expected SSH key file %s for second account, got %s", expected2, cfg.CodeCommit.Accounts[1].SSHKeyFile)
+	if cfg.ForceReclone {
+		t.Error("expected ForceReclone false by default")
 	}
 }
 
@@ -245,6 +189,7 @@ output_dir: ./mirror
 concurrent_clones: 10
 log_level: debug
 log_commands: true
+force_reclone: true
 
 git:
   path: /usr/bin/git
@@ -261,10 +206,8 @@ codecommit:
   accounts:
     - id: "111111111111"
       profile: prod
-      ssh_key_id: AAAAAAA
-      ssh_key_file: ~/.ssh/id_rsa
     - id: "222222222222"
-      ssh_key_id: BBBBBBB
+      profile: dev
 
 github:
   username: testuser
@@ -331,18 +274,11 @@ github:
 	if cfg.CodeCommit.Accounts[0].Profile != "prod" {
 		t.Errorf("expected profile 'prod', got '%s'", cfg.CodeCommit.Accounts[0].Profile)
 	}
-	if cfg.CodeCommit.Accounts[0].SSHKeyID != "AAAAAAA" {
-		t.Errorf("expected SSH key ID 'AAAAAAA', got '%s'", cfg.CodeCommit.Accounts[0].SSHKeyID)
+	if !cfg.ForceReclone {
+		t.Error("expected force_reclone true")
 	}
-	expectedKeyFile := home + "/.ssh/id_rsa"
-	if cfg.CodeCommit.Accounts[0].SSHKeyFile != expectedKeyFile {
-		t.Errorf("expected SSH key file '%s', got '%s'", expectedKeyFile, cfg.CodeCommit.Accounts[0].SSHKeyFile)
-	}
-	if cfg.CodeCommit.Accounts[1].SSHKeyID != "BBBBBBB" {
-		t.Errorf("expected SSH key ID 'BBBBBBB', got '%s'", cfg.CodeCommit.Accounts[1].SSHKeyID)
-	}
-	if cfg.CodeCommit.Accounts[1].SSHKeyFile != "" {
-		t.Errorf("expected empty SSH key file for second account, got '%s'", cfg.CodeCommit.Accounts[1].SSHKeyFile)
+	if cfg.CodeCommit.Accounts[1].Profile != "dev" {
+		t.Errorf("expected profile 'dev', got '%s'", cfg.CodeCommit.Accounts[1].Profile)
 	}
 
 	if cfg.GitHub == nil {

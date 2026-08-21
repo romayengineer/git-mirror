@@ -13,7 +13,7 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 - **Smart Directory Organization**: Organizes clones as `provider/account-or-org/[region/]repository_name`
 - **Automatic Updates**: Detect existing repos and pull latest changes
 - **Error Resilience**: Continue if individual repos/regions/providers fail
-- **Flexible Authentication**: SSH keys for CodeCommit, tokens for GitHub
+- **Flexible Authentication**: git-remote-codecommit (IAM via AWS profiles) for CodeCommit, SSH/tokens for GitHub
 - **Configuration via .env**: Simple environment-based configuration
 - **Per-Provider Config**: Each provider activated by its own config variables
 - **GitHub HTTP API**: Direct HTTP calls — no external CLI dependency for GitHub
@@ -25,7 +25,7 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 
 - Go 1.21 or later
 - Git (installed and in PATH)
-- **AWS CodeCommit**: AWS CLI installed and configured (`aws --version`)
+- **AWS CodeCommit**: AWS CLI installed and configured (`aws --version`) + `git-remote-codecommit` (`pip install git-remote-codecommit` or `pipx install git-remote-codecommit`)
 - **GitHub**: Personal access token (create at https://github.com/settings/tokens)
 
 ### Build and Install
@@ -68,13 +68,27 @@ nano ~/.config/git-mirror/.env
 MIRROR_OUTPUT_DIR=./mirror
 
 # CodeCommit (optional — activate by setting AWS_ACCOUNT_IDS)
+# Uses git-remote-codecommit with IAM profile in URL: codecommit::region://profile@repo
 AWS_ACCOUNT_IDS=123456789012,210987654321
-SSH_KEY_PATH=~/.ssh/id_rsa
+AWS_ACCOUNT_PROFILES=123456789012:prod,210987654321:dev
 AWS_REGIONS=us-east-1,eu-west-1
 
 # GitHub (optional — activate by setting GITHUB_USERNAME or GITHUB_ORGS)
 GITHUB_USERNAME=my-username
 GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+```yaml
+# Or via config.yaml (recommended)
+output_dir: ./mirror
+codecommit:
+  accounts:
+    - id: "123456789012"
+      profile: prod
+    - id: "210987654321"
+      profile: dev
+github:
+  username: my-username
 ```
 
 ### Configuration Variables
@@ -88,11 +102,12 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxx
 - `GITHUB_ORGS` — Comma-separated GitHub organizations to mirror
 
 **General optional:**
-- `SSH_KEY_PATH` — Path to SSH private key
+- `SSH_KEY_PATH` — Path to SSH private key (for GitHub, not CodeCommit)
 - `CONCURRENT_CLONES` — Number of concurrent clone operations (default: 5)
 - `LOG_LEVEL` — Logging level: debug, info, warn, error (default: "info")
 - `GIT_PATH` — Path to git executable (default: "git")
 - `GIT_PATH_FORMAT` — Path format: "linux" or "windows" (default: "linux")
+- `FORCE_RECLONE` / `force_reclone` — Re-clone on URL mismatch instead of failing (default: false). Needed when migrating from SSH to codecommit:: URLs.
 
 ## Usage
 
