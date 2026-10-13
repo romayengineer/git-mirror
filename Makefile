@@ -1,18 +1,22 @@
-.PHONY: build test test-verbose test-cover fmt vet lint clean run deps install help
+.PHONY: build test test-verbose test-cover fmt vet lint clean run deps install help tidy sync
+
+MODULES := modules/core modules/exec modules/path modules/gitops modules/config modules/orchestrator modules/provider-github modules/provider-codecommit cmd/git-mirror
 
 help:
-	@echo "AWS CodeCommit Mirror - Build Commands"
+	@echo "git-mirror (multi-module monorepo) - Build Commands"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
 	@echo "  build         - Build the git-mirror binary"
-	@echo "  test          - Run all unit tests"
+	@echo "  test          - Run all unit tests (all modules)"
 	@echo "  test-verbose  - Run tests with verbose output"
 	@echo "  test-cover    - Run tests with coverage report"
 	@echo "  fmt           - Format all Go code"
 	@echo "  vet           - Run go vet analysis"
 	@echo "  lint          - Run golangci-lint (requires installation)"
+	@echo "  tidy          - go mod tidy in every module"
+	@echo "  sync          - go work sync"
 	@echo "  run           - Build and run the tool"
 	@echo "  install       - Build and install to ~/.local/bin"
 	@echo "  clean         - Remove build artifacts"
@@ -20,32 +24,33 @@ help:
 	@echo "  help          - Show this help message"
 	@echo ""
 	@echo "Build output: ./build/git-mirror"
+	@echo "Modules (each with own go.mod): $(MODULES)"
 	@echo ""
 
 build:
 	@mkdir -p build
-	cd src && go build -o ../build/git-mirror ./cmd/main
+	cd cmd/git-mirror && go build -o ../../build/git-mirror .
 	@echo "✓ Built: ./build/git-mirror"
 
 test:
-	cd src && go test ./...
+	@for m in $(MODULES); do echo "== $$m"; (cd $$m && go test ./...) || exit 1; done
 
 test-verbose:
-	cd src && go test -v ./...
+	@for m in $(MODULES); do echo "== $$m"; (cd $$m && go test -v ./...) || exit 1; done
 
 test-cover:
-	cd src && go test -cover ./...
+	@for m in $(MODULES); do echo "== $$m"; (cd $$m && go test -cover ./...) || exit 1; done
 
 fmt:
-	cd src && go fmt ./...
+	@for m in $(MODULES); do (cd $$m && go fmt ./...) || exit 1; done
 	@echo "✓ Code formatted"
 
 vet:
-	cd src && go vet ./...
+	@for m in $(MODULES); do (cd $$m && go vet ./...) || exit 1; done
 	@echo "✓ Code vetted"
 
 lint:
-	cd src && golangci-lint run
+	@for m in $(MODULES); do (cd $$m && golangci-lint run) || exit 1; done
 	@echo "✓ Linting complete"
 
 clean:
@@ -88,10 +93,13 @@ install: build
 	@echo "To use this command globally, ensure $(HOME)/.local/bin is in your PATH:"
 	@echo "  export PATH=\$$HOME/.local/bin:\$$PATH"
 
-deps:
-	cd src && go mod download
-	cd src && go mod tidy
+deps tidy:
+	@for m in $(MODULES); do echo "== $$m"; (cd $$m && go mod download && go mod tidy) || exit 1; done
 	@echo "✓ Dependencies updated"
+
+sync:
+	go work sync
+	@echo "✓ Workspace synced"
 
 all: clean fmt vet test-cover build
 	@echo "✓ Full build complete"

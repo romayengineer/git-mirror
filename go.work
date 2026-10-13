@@ -1,0 +1,13 @@
+go 1.25.0
+
+use (
+	./cmd/git-mirror
+	./modules/config
+	./modules/core
+	./modules/exec
+	./modules/gitops
+	./modules/orchestrator
+	./modules/path
+	./modules/provider-codecommit
+	./modules/provider-github
+)
