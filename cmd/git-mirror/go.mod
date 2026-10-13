@@ -9,12 +9,9 @@ require (
 	github.com/romayengineer/git-mirror-orchestrator v0.0.0
 	github.com/romayengineer/git-mirror-provider-codecommit v0.0.0
 	github.com/romayengineer/git-mirror-provider-github v0.0.0
-	github.com/vbauerster/mpb/v8 v8.14.0
 )
 
 require (
-	github.com/VividCortex/ewma v1.2.0 // indirect
-	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/aws/aws-sdk-go-v2 v1.24.0 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.26.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.12 // indirect
@@ -28,13 +25,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.5 // indirect
 	github.com/aws/smithy-go v1.19.0 // indirect
-	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/romayengineer/git-mirror-exec v0.0.0 // indirect
 	github.com/romayengineer/git-mirror-path v0.0.0 // indirect
-	github.com/vbauerster/cupwriter v0.0.4 // indirect
-	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

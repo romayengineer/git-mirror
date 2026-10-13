@@ -97,13 +97,13 @@ func (o *orchestrator) processProvider(ctx context.Context, config *config.Confi
 
 	fmt.Printf("\n📦 Provider %s: Found %d repositories\n", provider.Name(), len(repos))
 
-	handles, done := o.progress.Start(repos)
+	reporter, done := o.progress.Start(provider.Name(), len(repos))
 	defer done()
 
 	var wg sync.WaitGroup
-	for i, repo := range repos {
+	for _, repo := range repos {
 		wg.Add(1)
-		go func(r *core.Repository, h ports.RepoProgress) {
+		go func(r *core.Repository) {
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
@@ -114,14 +114,10 @@ func (o *orchestrator) processProvider(ctx context.Context, config *config.Confi
 			}
 
 			result := o.cloner.CloneRepository(r)
-			if result.Success {
-				h.Done(true, "✓ "+result.Message)
-			} else {
-				h.Done(false, "✗ "+result.Message)
-			}
+			reporter.Done(r, result.Success, result.Message)
 
 			resultsChan <- result
-		}(repo, handles[i])
+		}(repo)
 	}
 
 	wg.Wait()

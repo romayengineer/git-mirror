@@ -73,7 +73,7 @@ func run() error {
 		providersSlice = append(providersSlice, githubprovider.NewGitHubProvider(cfg.GitHub))
 	}
 
-	orch := orchestrator.NewOrchestrator(cloner, cfg.SSHKeyPath, providersSlice, presenter.MpbRenderer{})
+	orch := orchestrator.NewOrchestrator(cloner, cfg.SSHKeyPath, providersSlice, presenter.ConsoleRenderer{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
