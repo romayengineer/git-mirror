@@ -40,65 +40,61 @@ The tool follows a plugin-style provider pattern:
 5. **Clone Phase**: Parallel clone/update of all discovered repositories
 6. **Mirror Sync**: Pull latest changes from cloned repositories
 
-The codebase is structured around these concerns:
-- **Provider Interface** (`src/internal/providers/provider.go`): Defines contract for all providers
-- **Provider Implementations** (`src/internal/providers/*/`): Provider-specific logic (CodeCommit, GitHub, etc.)
-- **Git Operations** (`src/internal/git/`): Unified clone/pull logic used by all providers
-- **Orchestration** (`src/internal/mirror/`): Coordinates providers and cloning
-- **Configuration** (`src/pkg/config/`): Environment-based configuration
-- **Type Definitions** (`src/pkg/types/`): Shared data structures including per-provider config types
+The codebase is a multi-module monorepo (one `go.mod` per module, wired by `go.work`).
+Each module has a single responsibility and is independently versioned (`go get`-able).
+It is structured around these concerns:
+- **Domain** (`modules/core/`): `Repository` entities + `Provider` port (stdlib only, no third-party deps)
+- **Provider Implementations** (`modules/provider-codecommit/`, `modules/provider-github/`): Provider-specific discovery, each in its own installable module
+- **Git Operations** (`modules/gitops/`): `gitexec` (git CLI runner, infrastructure) + `gitsync` (clone-vs-pull policy, application)
+- **Orchestration** (`modules/orchestrator/`): Schedules providers and cloning; progress UI injected via `ports.ProgressRenderer` (no `mpb` dependency here)
+- **Configuration** (`modules/config/`): `api.go` DTOs + `env/` and `yaml/` loaders + `pathutil/` helpers
+- **Infrastructure primitives** (`modules/exec/`, `modules/path/`): OS command abstraction, WSL path conversion
+- **Composition root** (`cmd/git-mirror/`): `main.go` wiring + `presenter/` (mpb UI) + `configfiles/` + `report/`
 
 ## Repository Structure
 
 ```
 git-mirror/
-├── Makefile                                 # Build automation (run from root)
+├── Makefile                                 # Build automation (run from root, loops over all modules)
 ├── README.md
 ├── AGENTS.md
 ├── KNOWN_ISSUES.md
-├── .env.example                             # Example .env template
-├── .env                                     # Configuration (git ignored)
+├── config.example.yaml                      # Example YAML config template
+├── go.work / go.work.sum                    # Workspace wiring all modules
 ├── .gitignore
-├── src/                                     # All Go code
-│   ├── go.mod
-│   ├── go.sum
-│   ├── cmd/
-│   │   └── main/
-│   │       └── main.go                      # Entry point - initializes providers and orchestrator
-│   ├── internal/
-│   │   ├── providers/                       # Git provider implementations
-│   │   │   ├── provider.go                  # Provider interface
-│   │   │   ├── codecommit/
-│   │   │   │   └── provider.go              # CodeCommit provider
-│   │   │   └── github/
-│   │   │       ├── provider.go              # GitHub provider (direct HTTP API)
-│   │   │       └── provider_test.go         # Tests with httptest server
-│   │   ├── aws/
-│   │   │   ├── client.go                    # AWS SDK wrapper
-│   │   │   ├── cli_executor.go              # AWS CLI wrapper
-│   │   │   ├── discoverer.go                # CodeCommit repository discovery
-│   │   │   └── discoverer_test.go
-│   │   ├── git/
-│   │   │   ├── executor.go                  # Git CLI wrapper
-│   │   │   ├── cloner.go                    # Clone/pull logic (provider-agnostic)
-│   │   │   └── cloner_test.go
-│   │   └── mirror/
-│   │       └── orchestrator.go              # Coordinates providers and cloning
-│   └── pkg/
-│       ├── config/
-│       │   ├── config.go                    # .env parsing & validation
-│       │   └── config_test.go
-│       ├── exec/
-│       │   ├── commander.go                 # Command execution abstraction
-│       │   └── commander_test.go            # Tests for Commander interface
-│       ├── path/
-│       │   ├── converter.go                 # WSL to Windows path conversion
-│       │   └── converter_test.go            # Tests for path conversion
-│       └── types/
-│           └── types.go                     # Shared data types (Repository, CloneResult, etc.)
+├── modules/                                 # Installable Go modules (one go.mod each)
+│   ├── core/                                # Domain: Repository, MirrorStats, Provider port (stdlib only)
+│   ├── exec/                                # Commander abstraction + tests
+│   ├── path/                                # WSL↔Windows PathConverter + tests
+│   ├── gitops/
+│   │   ├── gitexec/executor.go              # Git CLI runner (infrastructure)
+│   │   └── gitsync/                         # Clone-vs-pull policy + tests (application)
+│   ├── config/
+│   │   ├── api.go                           # Config, GitHubConfig, CodeCommitConfig DTOs
+│   │   ├── loader.go                        # Loader interface
+│   │   ├── env/loader.go                    # .env parsing (+ tests)
+│   │   ├── yaml/loader.go                   # config.yaml parsing (+ tests)
+│   │   └── pathutil/                        # ~ expansion, k:v parsing (+ tests)
+│   ├── orchestrator/
+│   │   ├── orchestrator.go                  # Discovery fan-out + scheduling (+ tests)
+│   │   ├── layout/                          # Local mirror path builder (+ tests)
+│   │   └── ports/progress.go                # ProgressRenderer port (mpb-free)
+│   ├── provider-github/                     # GitHub REST discovery (+ httptest tests)
+│   └── provider-codecommit/                 # CodeCommit discovery + aws/{client,cli,discovery} (+ tests)
+├── cmd/
+│   └── git-mirror/                          # Installable binary module (composition root)
+│       ├── go.mod
+│       ├── main.go                          # Wiring only: config → providers → orchestrator
+│       ├── presenter/mpb.go                 # mpb ProgressRenderer (only place importing mpb)
+│       ├── configfiles/search.go            # config.yaml / .env search order
+│       └── report/summary.go                # Startup + summary printing
 └── build/                                   # Build output (git ignored)
     └── git-mirror                            # Compiled binary
 ```
+
+> Note: the legacy `src/` single-module monolith was removed (see tag `monolith-last`
+> for the last commit containing it). `Config` DTOs live in `modules/config/api.go`,
+> not in `core` — `core` holds domain entities only.
 
 ## Development Commands
 
@@ -117,9 +113,9 @@ make test-verbose      # Run with verbose output
 make test-cover        # Show coverage report
 ```
 
-To run a specific test:
+To run a specific test (per module):
 ```bash
-cd src/
+cd modules/provider-github/
 go test ./... -run TestName
 ```
 
@@ -275,7 +271,7 @@ codecommit:
 
 ## Per-Provider Config Architecture
 
-The `Config` struct in `src/pkg/types/types.go` uses per-provider config blocks instead of a flat list of fields:
+The `Config` struct in `modules/config/api.go` uses per-provider config blocks instead of a flat list of fields:
 
 ```go
 type Config struct {
@@ -321,8 +317,8 @@ if cfg.GitHub != nil {
 
 Each provider has a **single constructor** that takes its config struct:
 ```go
-func NewGitHubProvider(cfg *types.GitHubConfig) *GitHubProvider
-func NewCodeCommitProvider(cfg *types.CodeCommitConfig) *CodeCommitProvider
+func NewGitHubProvider(cfg *config.GitHubConfig) *GitHubProvider
+func NewCodeCommitProvider(cfg *config.CodeCommitConfig) *CodeCommitProvider
 ```
 
 This replaces the previous pattern of multiple constructor variants (e.g., `NewXWithLogging`, `NewXWithClient`).
@@ -334,20 +330,23 @@ This replaces the previous pattern of multiple constructor variants (e.g., `NewX
   - `make install`: Installs binary to `~/.local/bin/`, creates `~/.config/git-mirror/`
   - `make test`: Runs all unit tests
 - `config.example.yaml`: Template YAML configuration file (all settings commented and documented)
-- `src/go.mod` / `src/go.sum`: Dependency management
-- `src/cmd/main/main.go`: Entry point (searches for config.yaml file and starts orchestration)
-  - Config file search order: `~/.config/git-mirror/config.yaml` → `config.yaml` → `../config.yaml` → fallback `.env`
-- `src/internal/aws/`: AWS SDK interactions and region enumeration (uses CLI wrapper for discovery)
-- `src/internal/git/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
-- `src/internal/mirror/`: Orchestration of discovery + cloning workflow with `mpb` progress bars
-- `src/pkg/config/`: .env parsing, validation, and configuration struct
-- `src/pkg/exec/`: Command execution abstraction (Commander interface, logging support)
-- `src/pkg/path/`: Path conversion utilities (WSL ↔ Windows path conversion)
-- `src/pkg/types/`: Shared data structures (Repository, CloneResult, etc.) including per-provider config types (GitHubConfig, CodeCommitConfig)
+- `go.work` / `go.work.sum`: Workspace wiring all modules (local dev uses `replace` directives; dropped on publish)
+- `cmd/git-mirror/main.go`: Composition root — wiring only (config → providers → orchestrator)
+  - `cmd/git-mirror/configfiles/search.go`: Config file search order: `~/.config/git-mirror/config.yaml` → `config.yaml` → `../config.yaml` → fallback `.env`
+  - `cmd/git-mirror/presenter/mpb.go`: The only place importing `mpb`
+  - `cmd/git-mirror/report/summary.go`: Startup + summary printing
+- `modules/provider-codecommit/aws/`: AWS SDK credential check + CLI wrapper + region/repo discovery
+- `modules/gitops/gitexec/`: Thin wrapper around git CLI commands (clone, fetch, etc.)
+- `modules/gitops/gitsync/`: Clone-vs-pull policy (provider-agnostic) with `mpb`-free tests
+- `modules/orchestrator/`: Discovery fan-out + scheduling; progress via `ports.ProgressRenderer`
+- `modules/config/`: `api.go` DTOs + `env/` and `yaml/` loaders + `pathutil/` helpers
+- `modules/exec/`: Command execution abstraction (Commander interface, logging support)
+- `modules/path/`: Path conversion utilities (WSL ↔ Windows path conversion)
+- `modules/core/`: Domain entities (`Repository`, `CloneResult`, `MirrorStats`) + `Provider` port — stdlib only, no config DTOs
 
 ## Git Command Implementation
 
-The tool uses **git CLI commands directly** via Go's `os/exec` package rather than a pure-Go git library. A thin wrapper in `src/internal/git/` encapsulates common git operations:
+The tool uses **git CLI commands directly** via Go's `os/exec` package rather than a pure-Go git library. A thin wrapper in `modules/gitops/gitexec/` encapsulates common git operations, with clone-vs-pull policy in `modules/gitops/gitsync/`:
 
 - `Clone(url, path)` — executes `git clone`
 - `Pull(repoPath)` — executes `git fetch --all` in an existing repository
@@ -369,7 +368,7 @@ The tool uses **git CLI commands directly** via Go's `os/exec` package rather th
 
 ## Command Execution Abstraction
 
-The tool abstracts OS command execution through the **`Commander` interface** (`src/pkg/exec/commander.go`) to enable:
+The tool abstracts OS command execution through the **`Commander` interface** (`modules/exec/commander.go`) to enable:
 - **Testability**: Mock commands without executing real processes
 - **Logging**: Optional logging of all executed commands (controlled by `LOG_COMMANDS` config)
 - **Flexibility**: Future implementations can swap command execution strategies
@@ -431,7 +430,7 @@ GIT_PATH_FORMAT=windows
 
 ### Path Converter Implementation
 
-The path conversion is abstracted through the `PathConverter` interface (`src/pkg/path/converter.go`):
+The path conversion is abstracted through the `PathConverter` interface (`modules/path/converter.go`):
 
 ```go
 type PathConverter interface {
@@ -462,14 +461,14 @@ When `GIT_PATH_FORMAT=windows`, the git executor converts every path before pass
 
 ### Integration Points
 
-- **Configuration** (`src/pkg/config/config.go`): Parses `GIT_PATH_FORMAT` from environment
-- **Config Struct** (`src/pkg/types/types.go`): Stores `GitPathFormat` field
-- **Git Executor** (`src/internal/git/executor.go`): Injects `PathConverter` and applies conversion to all paths
-- **Main** (`src/cmd/main/main.go`): Initializes executor with path format from config
+- **Configuration** (`modules/config/env/loader.go`, `modules/config/yaml/loader.go`): Parses `GIT_PATH_FORMAT` from environment/YAML
+- **Config Struct** (`modules/config/api.go`): Stores `GitPathFormat` field
+- **Git Executor** (`modules/gitops/gitexec/executor.go`): Injects `PathConverter` and applies conversion to all paths
+- **Main** (`cmd/git-mirror/main.go`): Initializes executor with path format from config
 
 ### Testing
 
-The path converter includes comprehensive tests (`src/pkg/path/converter_test.go`) covering:
+The path converter includes comprehensive tests (`modules/path/converter_test.go`) covering:
 - Windows path conversion: `/mnt/c/path` → `C:\path`
 - Case handling: Uppercase drive letter conversion
 - Non-WSL paths: Unchanged when not `/mnt/X/` format
@@ -531,18 +530,20 @@ func (m *mockAccountClient) GetAccountAlias(...) (string, error) { return "test-
 
 **Package Structure:**
 ```
-src/internal/aws/
-├── client.go           # AccountClient interface + AWS SDK implementation
-├── cli_executor.go     # AWS CLI wrapper for API calls
-├── discoverer.go       # RepositoryDiscoverer for CodeCommit
-└── discoverer_test.go  # Tests with mocked client
+modules/provider-codecommit/
+├── provider.go           # CodeCommit provider (per-account SSH mapping)
+└── aws/
+    ├── client.go         # AccountClient interface + AWS SDK credential check
+    ├── cli.go            # AWS CLI wrapper for API calls
+    ├── discovery.go      # RepositoryDiscoverer for CodeCommit
+    └── discovery_test.go # Tests with mocked client
 ```
 
 **GitHub:**
 
 Package Structure:
 ```
-src/internal/providers/github/
+modules/provider-github/
 ├── provider.go         # GitHub provider (GitHub REST API via net/http)
 └── provider_test.go    # Tests with httptest server
 ```
@@ -551,7 +552,7 @@ src/internal/providers/github/
 
 **Required Components:**
 
-1. **Per-Provider Config Type** — Add a config struct to `src/pkg/types/types.go`
+1. **Per-Provider Config Type** — Add a config struct to `modules/config/api.go`
    ```go
    type GitLabConfig struct {
      URL    string
@@ -560,16 +561,16 @@ src/internal/providers/github/
    }
    ```
 
-2. **Provider Implementation** — Create `src/internal/providers/<name>/provider.go` implementing `providers.Provider`
+2. **Provider Implementation** — Create `modules/provider-gitlab/provider.go` (own `go.mod`) implementing `core.Provider`
    ```go
-   func NewXProvider(cfg *types.XConfig) *XProvider
-   func (p *XProvider) Name() string
-   func (p *XProvider) DiscoverRepositories(ctx context.Context) ([]*types.Repository, error)
+   func NewGitLabProvider(cfg *config.GitLabConfig) *GitLabProvider
+   func (p *GitLabProvider) Name() string
+   func (p *GitLabProvider) DiscoverRepositories(ctx context.Context) ([]*core.Repository, error)
    ```
 
-3. **Configuration Parsing** — Add a `parseXConfig()` function in `src/pkg/config/config.go`
+3. **Configuration Parsing** — Add a `parseXConfig()` function in `modules/config/env/loader.go` and `modules/config/yaml/loader.go`
 
-4. **Wire in main.go** — Add provider to the providers slice when its config is non-nil:
+4. **Wire in main.go** — Add the module to `cmd/git-mirror/go.mod` (+ `go.work use`) and to the providers slice when its config is non-nil:
    ```go
    if cfg.GitLab != nil {
      providers = append(providers, gitlab.NewGitLabProvider(cfg.GitLab))
@@ -578,7 +579,7 @@ src/internal/providers/github/
 
 ### Design Principles for New Providers
 
-1. **Normalize Output**: All providers return `types.Repository` objects
+1. **Normalize Output**: All providers return `core.Repository` objects
 2. **Consistent Organization**: Use provider name as top-level directory
    ```
    mirror_output/
@@ -593,7 +594,7 @@ src/internal/providers/github/
    │   ├── group-name/
    │   │   └── repo-name/
    ```
-3. **Reuse Git Operations**: Use same `git.Cloner` for all providers
+3. **Reuse Git Operations**: Use the same `gitsync.Cloner` for all providers
 4. **Handle Rate Limits**: Each provider has different rate limit strategies
 5. **Authentication Flexibility**: Support tokens, SSH keys, OAuth, etc.
 

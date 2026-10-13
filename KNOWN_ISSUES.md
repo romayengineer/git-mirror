@@ -69,7 +69,7 @@ You can then comment out or remove the `Host git-codecommit.*.amazonaws.com` and
 
 ### Status
 **Implemented:** 2026-07-27  
-**Files Modified:** `src/pkg/types/types.go`, `src/pkg/config/config.go`, `src/pkg/config/yaml_loader.go`, `src/internal/providers/codecommit/provider.go`, `src/internal/providers/github/provider.go`, `src/internal/git/executor.go`, `src/internal/git/cloner.go`, `src/internal/mirror/orchestrator.go`, `src/cmd/main/main.go`
+**Files Modified:** `modules/config/api.go`, `modules/config/env/loader.go`, `modules/config/yaml/loader.go`, `modules/provider-codecommit/provider.go`, `modules/provider-github/provider.go`, `modules/gitops/gitexec/executor.go`, `modules/gitops/gitsync/cloner.go`, `modules/orchestrator/orchestrator.go`, `cmd/git-mirror/main.go`
 
 ---
 
@@ -189,9 +189,9 @@ Warning: failed to list repositories in region us-east-1: not found, ResolveEndp
 
 ### Code References
 
-- **Error Location:** `src/internal/aws/client.go` - `ListRepositories()` method
+- **Error Location:** `modules/provider-codecommit/aws/client.go` - `ListRepositories()` method
 - **Error Occurs In:** AWS SDK's endpoint resolver during service client initialization
-- **Workaround Location:** Would be implemented in `src/internal/aws/` directory
+- **Workaround Location:** Would be implemented in `modules/provider-codecommit/aws/` directory
 
 ---
 

@@ -7,7 +7,7 @@
 
 # Build artifacts
 /build/
-/src/*.exe
+*.exe
 
 # IDE and editor files
 .vscode/
@@ -18,13 +18,8 @@
 .DS_Store
 
 # Go build and test artifacts
-/src/dist/
-/src/bin/
 *.test
 *.out
 
 # Mirror output directory
 /mirror/
-
-# Dependency management
-/src/vendor/
