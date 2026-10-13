@@ -38,61 +38,71 @@ make build
 # Build and install to ~/.local/bin
 make install
 # Copies binary to ~/.local/bin and creates config directory
-# Next: Edit ~/.config/git-mirror/.env with your settings
+# Next: Edit ~/.config/git-mirror/config.yaml with your settings
 ```
 
 ## Configuration
 
 The tool searches for configuration in this order:
-1. `~/.config/git-mirror/.env` (recommended for user-wide config)
-2. `.env` in the current directory
-3. `../.env` in the parent directory
+1. `~/.config/git-mirror/config.yaml` (recommended for user-wide config)
+2. `config.yaml` in the current directory
+3. `../config.yaml` in the parent directory
+4. Falls back to `.env` search (legacy) if no `config.yaml` found
 
 ### Setup
 
 ```bash
 # Option 1: Quick install (recommended)
 make install
-# Creates ~/.config/git-mirror/.env from template
-# Then edit: nano ~/.config/git-mirror/.env
+# Creates ~/.config/git-mirror/config.yaml from template
+# Then edit: nano ~/.config/git-mirror/config.yaml
 
 # Option 2: Manual setup
-cp .env.example ~/.config/git-mirror/.env
-nano ~/.config/git-mirror/.env
+cp config.example.yaml ~/.config/git-mirror/config.yaml
+nano ~/.config/git-mirror/config.yaml
 ```
 
-### Example Configuration
+### Example Configuration (`config.yaml`)
 
-```env
+```yaml
 # Always required
-MIRROR_OUTPUT_DIR=./mirror
+output_dir: ./mirror
 
-# CodeCommit (optional — activate by setting AWS_ACCOUNT_IDS)
-AWS_ACCOUNT_IDS=123456789012,210987654321
-SSH_KEY_PATH=~/.ssh/id_rsa
-AWS_REGIONS=us-east-1,eu-west-1
+# CodeCommit (optional — activate by listing accounts)
+# codecommit:
+#   accounts:
+#     - id: "123456789012"
+#   regions:
+#     - us-east-1
+#     - eu-west-1
 
-# GitHub (optional — activate by setting GITHUB_USERNAME or GITHUB_ORGS)
-GITHUB_USERNAME=my-username
-GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+# GitHub (optional — activate by setting username and/or orgs)
+github:
+  username: my-username
+  token: ghp_xxxxxxxxxxxx
 ```
+
+See `config.example.yaml` for all settings. Legacy `.env` is still supported
+(see `.env.example.legacy` for variable names).
+
+### Configuration Variables
 
 ### Configuration Variables
 
 **Required:**
-- `MIRROR_OUTPUT_DIR` — Local directory for cloned repositories
+- `output_dir` — Local directory for cloned repositories
 
 **Optional (at least one provider must be configured):**
-- `AWS_ACCOUNT_IDS` — Comma-separated list of AWS account IDs (activates CodeCommit)
-- `GITHUB_USERNAME` — GitHub username to mirror personal repos (activates GitHub)
-- `GITHUB_ORGS` — Comma-separated GitHub organizations to mirror
+- `codecommit.accounts` — List of AWS accounts (each with `id`, optional `profile`, `ssh_key_id`, `ssh_key_file`)
+- `github.username` — GitHub username to mirror personal repos (activates GitHub)
+- `github.orgs` — List of GitHub organizations to mirror
 
 **General optional:**
-- `SSH_KEY_PATH` — Path to SSH private key
-- `CONCURRENT_CLONES` — Number of concurrent clone operations (default: 5)
-- `LOG_LEVEL` — Logging level: debug, info, warn, error (default: "info")
-- `GIT_PATH` — Path to git executable (default: "git")
-- `GIT_PATH_FORMAT` — Path format: "linux" or "windows" (default: "linux")
+- `ssh.default_key_path` — Path to SSH private key
+- `concurrent_clones` — Number of concurrent clone operations (default: 5)
+- `log_level` — Logging level: debug, info, warn, error (default: "info")
+- `git.path` — Path to git executable (default: "git")
+- `git.path_format` — Path format: "linux" or "windows" (default: "linux")
 
 ## Usage
 
@@ -106,7 +116,7 @@ Or run the binary directly:
 ```
 
 The tool will:
-1. Load configuration from `.env`
+1. Load configuration from `config.yaml` (or `.env` legacy fallback)
 2. Discover repositories from all active providers in parallel
 3. Clone repositories to `MIRROR_OUTPUT_DIR/provider/account_or_org/[region/]repo_name`
 4. For existing repos, verify the URL and pull latest changes

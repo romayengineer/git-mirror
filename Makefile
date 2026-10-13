@@ -67,28 +67,28 @@ install: build
 	@chmod +x $(HOME)/.local/bin/git-mirror
 	@echo "✓ Installed: $(HOME)/.local/bin/git-mirror"
 	@echo "✓ Created config directory: $(HOME)/.config/git-mirror"
-	@if [ ! -f $(HOME)/.config/git-mirror/.env ]; then \
-		cp .env.example $(HOME)/.config/git-mirror/.env; \
-		echo "✓ Created config template: $(HOME)/.config/git-mirror/.env"; \
+	@if [ ! -f $(HOME)/.config/git-mirror/config.yaml ] && [ ! -f $(HOME)/.config/git-mirror/.env ]; then \
+		cp config.example.yaml $(HOME)/.config/git-mirror/config.yaml; \
+		echo "✓ Created config template: $(HOME)/.config/git-mirror/config.yaml"; \
 	else \
-		echo "ℹ  Config file already exists: $(HOME)/.config/git-mirror/.env (not overwritten)"; \
+		echo "ℹ  Config file already exists in $(HOME)/.config/git-mirror/ (not overwritten)"; \
 	fi
 	@echo ""
 	@echo "Next steps:"
 	@echo "1. Edit the configuration file with your settings:"
-	@echo "   nano $(HOME)/.config/git-mirror/.env"
+	@echo "   nano $(HOME)/.config/git-mirror/config.yaml"
 	@echo ""
-	@echo "2. Uncomment the REQUIRED variables and fill in your values:"
-	@echo "   - AWS_ACCOUNT_IDS"
-	@echo "   - SSH_KEY_PATH"
-	@echo "   - MIRROR_OUTPUT_DIR"
+	@echo "2. Set the REQUIRED output_dir and at least one provider:"
+	@echo "   - output_dir (e.g. ./mirror)"
+	@echo "   - github.username / github.orgs, or codecommit.accounts"
 	@echo ""
 	@echo "3. Run the tool:"
 	@echo "   git-mirror"
 	@echo ""
 	@echo "The tool will automatically load config from:"
-	@echo "  - $(HOME)/.config/git-mirror/.env (recommended)"
-	@echo "  - .env in current or parent directory"
+	@echo "  - $(HOME)/.config/git-mirror/config.yaml (recommended)"
+	@echo "  - config.yaml in current or parent directory"
+	@echo "  - .env search as legacy fallback"
 	@echo ""
 	@echo "To use this command globally, ensure $(HOME)/.local/bin is in your PATH:"
 	@echo "  export PATH=\$$HOME/.local/bin:\$$PATH"
