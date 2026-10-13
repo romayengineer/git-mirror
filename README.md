@@ -23,7 +23,8 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.25 or later
+- [just](https://github.com/casey/just) command runner (`brew install just`)
 - Git (installed and in PATH)
 - **AWS CodeCommit**: AWS CLI installed and configured (`aws --version`)
 - **GitHub**: Personal access token (create at https://github.com/settings/tokens)
@@ -32,11 +33,11 @@ A fast, parallel Git repository mirror tool written in Go. Mirror repositories f
 
 ```bash
 # Build only
-make build
+just build
 # Output: ./build/git-mirror
 
 # Build and install to ~/.local/bin
-make install
+just install
 # Copies binary to ~/.local/bin and creates config directory
 # Next: Edit ~/.config/git-mirror/config.yaml with your settings
 ```
@@ -53,7 +54,7 @@ The tool searches for configuration in this order:
 
 ```bash
 # Option 1: Quick install (recommended)
-make install
+just install
 # Creates ~/.config/git-mirror/config.yaml from template
 # Then edit: nano ~/.config/git-mirror/config.yaml
 
@@ -107,7 +108,7 @@ See `config.example.yaml` for all settings. Legacy `.env` is still supported
 ## Usage
 
 ```bash
-make run
+just run
 ```
 
 Or run the binary directly:
@@ -149,47 +150,47 @@ All commands are run from the **project root directory**.
 
 ### Build
 ```bash
-make build
+just build
 ```
 
 ### Run Tests
 ```bash
-make test
+just test
 ```
 
 ### Run Tests with Verbose Output
 ```bash
-make test-verbose
+just test-verbose
 ```
 
 ### Run with Coverage
 ```bash
-make test-cover
+just test-cover
 ```
 
 ### Format Code
 ```bash
-make fmt
+just fmt
 ```
 
 ### Check Code Issues
 ```bash
-make vet
+just vet
 ```
 
 ### Full Lint Check
 ```bash
-make lint
+just lint
 ```
 
 ### Run All (clean, format, vet, test, build)
 ```bash
-make all
+just all
 ```
 
 ### Show All Available Commands
 ```bash
-make help
+just
 ```
 
 See [AGENTS.md](AGENTS.md) for detailed architecture and development guidelines.

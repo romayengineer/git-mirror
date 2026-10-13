@@ -55,7 +55,7 @@ It is structured around these concerns:
 
 ```
 git-mirror/
-├── Makefile                                 # Build automation (run from root, loops over all modules)
+├── justfile                                 # Build automation (run from root, loops over all modules)
 ├── README.md
 ├── AGENTS.md
 ├── KNOWN_ISSUES.md
@@ -98,19 +98,19 @@ git-mirror/
 
 ## Development Commands
 
-All commands are run from the **project root directory** using the Makefile.
+All commands are run from the **project root directory** using `just`.
 
 ### Building
 ```bash
-make build
+just build
 # Output: ./build/git-mirror
 ```
 
 ### Testing
 ```bash
-make test              # Run all tests
-make test-verbose      # Run with verbose output
-make test-cover        # Show coverage report
+just test              # Run all tests
+just test-verbose      # Run with verbose output
+just test-cover        # Show coverage report
 ```
 
 To run a specific test (per module):
@@ -121,33 +121,33 @@ go test ./... -run TestName
 
 ### Linting & Code Quality
 ```bash
-make fmt               # Format code
-make vet               # Check for common errors
-make lint              # Full linting (requires golangci-lint)
+just fmt               # Format code
+just vet               # Check for common errors
+just lint              # Full linting (requires golangci-lint)
 ```
 
 ### Running
 ```bash
-make run               # Build and run the tool
+just run               # Build and run the tool
 # Or run the binary directly:
 ./build/git-mirror
 ```
 
 ### Cleanup
 ```bash
-make clean             # Remove build artifacts
+just clean             # Remove build artifacts
 ```
 
 ### Show Available Commands
 ```bash
-make help
+just                   # or: just --list
 ```
 
 ### Installation and Setup
 
 ```bash
 # Build and install to ~/.local/bin
-make install
+just install
 # Creates binary at ~/.local/bin/git-mirror
 # Creates config directory ~/.config/git-mirror/
 # Copies config.example.yaml → ~/.config/git-mirror/config.yaml (if not exists)
@@ -167,7 +167,7 @@ The YAML format is the primary configuration method. Legacy `.env` support is ma
 
 **First-time setup (recommended):**
 ```bash
-make install
+just install
 # Then edit: nano ~/.config/git-mirror/config.yaml
 ```
 
@@ -325,10 +325,10 @@ This replaces the previous pattern of multiple constructor variants (e.g., `NewX
 
 ## Key Files & Packages
 
-- `Makefile`: Build, test, and install automation
-  - `make build`: Compiles binary to `./build/git-mirror`
-  - `make install`: Installs binary to `~/.local/bin/`, creates `~/.config/git-mirror/`
-  - `make test`: Runs all unit tests
+- `justfile`: Build, test, and install automation
+  - `just build`: Compiles binary to `./build/git-mirror`
+  - `just install`: Installs binary to `~/.local/bin/`, creates `~/.config/git-mirror/`
+  - `just test`: Runs all unit tests
 - `config.example.yaml`: Template YAML configuration file (all settings commented and documented)
 - `go.work` / `go.work.sum`: Workspace wiring all modules (local dev uses `replace` directives; dropped on publish)
 - `cmd/git-mirror/main.go`: Composition root — wiring only (config → providers → orchestrator)
