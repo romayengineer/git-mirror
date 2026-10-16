@@ -114,9 +114,29 @@ func (c *cloner) repositoryExists(path string) bool {
 }
 
 func urlsMatch(url1, url2 string) bool {
-	url1 = normalizeURL(url1)
-	url2 = normalizeURL(url2)
-	return url1 == url2
+	if normalizeURL(url1) == normalizeURL(url2) {
+		return true
+	}
+	return codecommitEquivalent(url1, url2)
+}
+
+// codecommitEquivalent reports whether two URLs address the same CodeCommit
+// repository over different transports (e.g. the git-remote-codecommit helper
+// vs. an ssh:// clone URL). It only succeeds when both sides are recognizable
+// CodeCommit URLs, so the mismatch guard still rejects genuinely foreign remotes.
+func codecommitEquivalent(url1, url2 string) bool {
+	region1, name1, ok1 := codecommitIdentity(url1)
+	region2, name2, ok2 := codecommitIdentity(url2)
+	if !ok1 || !ok2 || name1 != name2 {
+		return false
+	}
+	// When both URLs state a region they must agree; an omitted region (GRC
+	// default) imposes no constraint because the local path already scopes by
+	// account and region.
+	if region1 != "" && region2 != "" && region1 != region2 {
+		return false
+	}
+	return true
 }
 
 func normalizeURL(url string) string {
