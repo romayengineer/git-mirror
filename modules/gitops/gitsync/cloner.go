@@ -49,7 +49,7 @@ func (c *cloner) CloneRepository(repo *core.Repository) *core.CloneResult {
 		return c.handleExistingRepository(repo)
 	}
 
-	if err := c.executor.Clone(repo.SSHCloneURL, repo.LocalPath, repo.SSHKeyPath); err != nil {
+	if err := c.executor.Clone(cloneURL(repo), repo.LocalPath, repo.SSHKeyPath); err != nil {
 		os.RemoveAll(repo.LocalPath)
 		return &core.CloneResult{
 			Repository: repo,
@@ -77,12 +77,13 @@ func (c *cloner) handleExistingRepository(repo *core.Repository) *core.CloneResu
 		}
 	}
 
-	if !urlsMatch(currentURL, repo.SSHCloneURL) {
+	expectedURL := cloneURL(repo)
+	if !urlsMatch(currentURL, expectedURL) {
 		return &core.CloneResult{
 			Repository: repo,
 			Success:    false,
-			Error:      fmt.Errorf("URL mismatch: existing=%s, expected=%s", currentURL, repo.SSHCloneURL),
-			Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s)", currentURL, repo.SSHCloneURL),
+			Error:      fmt.Errorf("URL mismatch: existing=%s, expected=%s", currentURL, expectedURL),
+			Message:    fmt.Sprintf("URL mismatch (existing: %s, expected: %s)", currentURL, expectedURL),
 		}
 	}
 
@@ -100,6 +101,19 @@ func (c *cloner) handleExistingRepository(repo *core.Repository) *core.CloneResu
 		Success:    true,
 		Message:    "updated",
 	}
+}
+
+// cloneURL returns the URL the repository should be cloned from and compared
+// against: the transport-neutral CloneURL when set, otherwise the provider's
+// native SSH URL for backward compatibility.
+func cloneURL(repo *core.Repository) string {
+	if repo == nil {
+		return ""
+	}
+	if repo.CloneURL != "" {
+		return repo.CloneURL
+	}
+	return repo.SSHCloneURL
 }
 
 func (c *cloner) ensureDirectoryExists(path string) error {

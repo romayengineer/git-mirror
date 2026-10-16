@@ -208,11 +208,13 @@ output_dir: ./mirror
 #   regions:
 #     - us-east-1
 #     - us-west-2
+#   transport: ssh                           # "ssh" (default) or "grc"
 #   accounts:
 #     - id: "123456789012"
 #       profile: production                  # AWS credentials profile
 #       ssh_key_id: APKAX4ENFON4GCH7RIJY     # CodeCommit SSH key ID
 #       ssh_key_file: ~/.ssh/id_rsa          # Per-account SSH key path
+#       transport: grc                       # Per-account override (optional)
 
 # --- GitHub ---
 # Activated when username and/or orgs are set
@@ -623,6 +625,9 @@ modules/provider-github/
 - Use STS AssumeRole for cross-account access or manage credentials via `~/.aws/credentials`
 - Use AWS credential chain (env vars, credentials file, IAM role)
 - Each account needs its own credential context
+- Clone transport is configurable (`transport: ssh | grc`, default `ssh`, overridable per account):
+  - `ssh` builds `ssh://<ssh_key_id>@git-codecommit.<region>.amazonaws.com/v1/repos/<name>`
+  - `grc` builds `codecommit::<region>://<profile>@<name>` for git-remote-codecommit, authenticating via the account's AWS profile (no SSH key)
 
 **GitHub:**
 - Uses direct HTTP calls to the GitHub REST API (`net/http`) — no external CLI dependency

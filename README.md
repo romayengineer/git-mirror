@@ -94,7 +94,8 @@ See `config.example.yaml` for all settings. Legacy `.env` is still supported
 - `output_dir` — Local directory for cloned repositories
 
 **Optional (at least one provider must be configured):**
-- `codecommit.accounts` — List of AWS accounts (each with `id`, optional `profile`, `ssh_key_id`, `ssh_key_file`)
+- `codecommit.accounts` — List of AWS accounts (each with `id`, optional `profile`, `transport`, `ssh_key_id`, `ssh_key_file`)
+- `codecommit.transport` — Clone transport for CodeCommit: `ssh` (default) or `grc` (git-remote-codecommit via AWS profile); overridable per account
 - `github.username` — GitHub username to mirror personal repos (activates GitHub)
 - `github.orgs` — List of GitHub organizations to mirror
 

@@ -39,8 +39,9 @@ type yamlGitHubConfig struct {
 }
 
 type yamlCodeCommit struct {
-	DefaultRegion string                        `yaml:"default_region"`
-	Regions       []string                      `yaml:"regions"`
+	DefaultRegion string                     `yaml:"default_region"`
+	Regions       []string                   `yaml:"regions"`
+	Transport     string                     `yaml:"transport"`
 	Accounts      []config.CodeCommitAccount `yaml:"accounts"`
 }
 
@@ -133,6 +134,7 @@ func (l *yamlLoader) Load() (*config.Config, error) {
 			DefaultRegion:      "us-east-1",
 			CredentialsProfile: "default",
 			LogCommands:        yc.LogCommands,
+			Transport:          yc.CodeCommit.Transport,
 		}
 		if yc.CodeCommit.DefaultRegion != "" {
 			ccCfg.DefaultRegion = yc.CodeCommit.DefaultRegion

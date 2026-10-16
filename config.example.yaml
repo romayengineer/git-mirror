@@ -42,6 +42,14 @@ output_dir: ./mirror
     # - us-east-1
     # - us-west-2
 
+  # OPTIONAL: How CodeCommit repositories are cloned. Default: ssh
+  #   ssh - ssh://git-codecommit.<region>.amazonaws.com with an SSH key
+  #         (requires ssh_key_id per account)
+  #   grc - git-remote-codecommit (codecommit::<region>://<profile>@<repo>)
+  #         using the account's AWS profile; no SSH key required
+  # Can be overridden per account via the account's `transport` field.
+  # transport: ssh
+
   # REQUIRED: List of AWS accounts to mirror from
   # accounts:
       # REQUIRED: AWS Account ID
@@ -58,6 +66,9 @@ output_dir: ./mirror
       # OPTIONAL: SSH key file for this specific account (falls back to ssh.default_key_path)
       # Supports ~ expansion for home directory.
       # ssh_key_file: ~/.ssh/id_rsa
+
+      # OPTIONAL: Per-account clone transport override ("ssh" or "grc").
+      # transport: grc
 
 # --- GitHub ---
 # Activated when username and/or orgs are set.

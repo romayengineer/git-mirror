@@ -174,6 +174,64 @@ func TestURLsMatchCodeCommitTransports(t *testing.T) {
 	}
 }
 
+func TestCloneURLPrefersCloneURLField(t *testing.T) {
+	tests := []struct {
+		name string
+		repo *core.Repository
+		want string
+	}{
+		{
+			name: "uses CloneURL when set",
+			repo: &core.Repository{CloneURL: "codecommit::us-east-1://p@Repo", SSHCloneURL: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/Repo"},
+			want: "codecommit::us-east-1://p@Repo",
+		},
+		{
+			name: "falls back to SSHCloneURL",
+			repo: &core.Repository{SSHCloneURL: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/Repo"},
+			want: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/Repo",
+		},
+		{
+			name: "nil repo",
+			repo: nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cloneURL(tt.repo); got != tt.want {
+				t.Errorf("cloneURL() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClonerExistingRepositoryGRCTransport(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoPath := filepath.Join(tmpDir, "sparqpoint-infra")
+	if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0755); err != nil {
+		t.Fatalf("failed to create repo dir: %v", err)
+	}
+
+	// Expected URL (grc transport) and the existing origin are the same GRC URL.
+	repo := &core.Repository{
+		Name:      "sparqpoint-infra",
+		CloneURL:  "codecommit::ca-central-1://valtira-sparq@sparqpoint-infra",
+		LocalPath: repoPath,
+	}
+
+	mockExec := &mockExecutor{
+		urlToReturn: "codecommit::ca-central-1://valtira-sparq@sparqpoint-infra",
+	}
+	cloner := NewCloner(mockExec)
+
+	result := cloner.CloneRepository(repo)
+
+	if !result.Success {
+		t.Errorf("expected pull to succeed for grc transport, got error: %v", result.Error)
+	}
+}
+
 func TestClonerExistingRepositoryCodeCommitGRCRemote(t *testing.T) {
 	tmpDir := t.TempDir()
 	repoPath := filepath.Join(tmpDir, "Valtira-Simplicis-Dev")

@@ -4,9 +4,15 @@ package core
 
 // Repository is the normalized domain entity produced by every provider.
 type Repository struct {
-	Name             string
-	RepositoryURL    string
-	HTTPCloneURL     string
+	Name          string
+	RepositoryURL string
+	// CloneURL is the transport-neutral URL used to clone and compare the
+	// repository. It carries whatever the provider's configured transport
+	// produced (e.g. an ssh:// or codecommit:: URL for CodeCommit).
+	CloneURL     string
+	HTTPCloneURL string
+	// SSHCloneURL is the provider's native SSH clone URL. Kept for reference;
+	// prefer CloneURL when deciding what to clone.
 	SSHCloneURL      string
 	ARN              string
 	AccountID        string

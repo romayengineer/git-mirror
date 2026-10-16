@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	core "github.com/romayengineer/git-mirror-core"
 	config "github.com/romayengineer/git-mirror-config"
+	core "github.com/romayengineer/git-mirror-core"
 )
 
 type ghRepo struct {
@@ -140,6 +140,7 @@ func (p *GitHubProvider) listRepos(ctx context.Context, path string) ([]ghRepo, 
 func (p *GitHubProvider) makeRepo(r ghRepo, alias string) *core.Repository {
 	return &core.Repository{
 		Name:         r.Name,
+		CloneURL:     r.SSHUrl,
 		SSHCloneURL:  r.SSHUrl,
 		HTTPCloneURL: r.URL,
 		AccountAlias: alias,

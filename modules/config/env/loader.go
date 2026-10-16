@@ -121,6 +121,7 @@ func parseCodeCommitConfig() (*config.CodeCommitConfig, error) {
 	profiles := pathutil.ParseKeyValuePairs(os.Getenv("AWS_ACCOUNT_PROFILES"))
 	sshKeyIDs := pathutil.ParseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_IDS"))
 	sshKeyFiles := pathutil.ParseKeyValuePairs(os.Getenv("CODECOMMIT_SSH_KEY_FILES"))
+	transports := pathutil.ParseKeyValuePairs(os.Getenv("CODECOMMIT_TRANSPORTS"))
 
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
@@ -133,6 +134,9 @@ func parseCodeCommitConfig() (*config.CodeCommitConfig, error) {
 		}
 		if k, ok := sshKeyIDs[id]; ok {
 			account.SSHKeyID = k
+		}
+		if t, ok := transports[id]; ok {
+			account.Transport = t
 		}
 		f, fileSet := sshKeyFiles[id]
 		if fileSet {
@@ -151,6 +155,9 @@ func parseCodeCommitConfig() (*config.CodeCommitConfig, error) {
 		for i, r := range cfg.Regions {
 			cfg.Regions[i] = strings.TrimSpace(r)
 		}
+	}
+	if v := os.Getenv("CODECOMMIT_TRANSPORT"); v != "" {
+		cfg.Transport = v
 	}
 	if v := os.Getenv("AWS_DEFAULT_REGION"); v != "" {
 		cfg.DefaultRegion = v

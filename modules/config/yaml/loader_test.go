@@ -31,6 +31,7 @@ ssh:
   default_key_path: ~/.ssh/id_rsa
 codecommit:
   default_region: eu-west-1
+  transport: grc
   regions:
     - us-east-1
     - eu-west-1
@@ -41,6 +42,7 @@ codecommit:
       ssh_key_file: ~/.ssh/id_rsa
     - id: "222222222222"
       ssh_key_id: BBBBBBB
+      transport: ssh
 github:
   username: testuser
   orgs:
@@ -64,6 +66,12 @@ github:
 	}
 	if cfg.CodeCommit == nil || len(cfg.CodeCommit.Accounts) != 2 {
 		t.Fatalf("expected 2 codecommit accounts, got %+v", cfg.CodeCommit)
+	}
+	if cfg.CodeCommit.Transport != "grc" {
+		t.Errorf("expected codecommit transport 'grc', got '%s'", cfg.CodeCommit.Transport)
+	}
+	if cfg.CodeCommit.Accounts[1].Transport != "ssh" {
+		t.Errorf("expected account transport 'ssh', got '%s'", cfg.CodeCommit.Accounts[1].Transport)
 	}
 	if cfg.GitHub == nil || cfg.GitHub.Username != "testuser" {
 		t.Fatalf("expected github user testuser, got %+v", cfg.GitHub)

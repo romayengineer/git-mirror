@@ -30,6 +30,9 @@ type CodeCommitAccount struct {
 	Profile    string `yaml:"profile"`
 	SSHKeyID   string `yaml:"ssh_key_id"`
 	SSHKeyFile string `yaml:"ssh_key_file"`
+	// Transport overrides the codecommit-level transport for this account.
+	// One of "ssh" (default) or "grc".
+	Transport string `yaml:"transport"`
 }
 
 // CodeCommitConfig configures the CodeCommit provider.
@@ -39,4 +42,9 @@ type CodeCommitConfig struct {
 	DefaultRegion      string
 	CredentialsProfile string
 	LogCommands        bool
+	// Transport selects how repositories are cloned: "ssh" (default) uses
+	// ssh://git-codecommit.<region>.amazonaws.com URLs with an SSH key, "grc"
+	// uses git-remote-codecommit (codecommit::<region>://<profile>@<name>) with
+	// the account's AWS profile. Individual accounts may override this.
+	Transport string
 }
